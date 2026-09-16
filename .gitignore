@@ -1,0 +1,24 @@
+__pycache__/
+*.pyc
+.DS_Store
+.build/
+verification/private-runs/
+dist/
+.swiftpm/
+
+# Local validation records and rendered designs can contain personal data.
+verification/results/
+verification/design/
+docs/preview-validation.md
+docs/desktop-switch-verification.md
+# Never publish account databases, credentials or signing material.
+auth.json
+accounts.json
+*.sqlite
+*.sqlite3
+*.sqlite-wal
+*.sqlite-shm
+*.p12
+*.p8
+.env
+.env.*
