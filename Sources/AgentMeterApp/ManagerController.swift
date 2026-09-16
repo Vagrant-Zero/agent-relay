@@ -45,7 +45,7 @@ final class ManagerController: NSObject, NSWindowDelegate {
 
     init(store: Store) {
         self.store = store
-        window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 700, height: 400),
+        window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 700, height: 470),
                           styleMask: [.titled, .closable, .resizable, .fullSizeContentView], backing: .buffered, defer: false)
         super.init()
         window.title = "Agent Relay"
@@ -53,7 +53,7 @@ final class ManagerController: NSObject, NSWindowDelegate {
         window.isReleasedWhenClosed = false
         window.minSize = NSSize(width: 680, height: 380)
         window.delegate = self
-        window.setFrameAutosaveName("AgentRelay.Manager.Compact")
+        window.setFrameAutosaveName("AgentRelay.Manager.Narrow")
         build()
         reload()
     }
