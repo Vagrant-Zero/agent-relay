@@ -24,7 +24,7 @@ class AutoRefreshTests(unittest.TestCase):
             data=json.loads(registry.read_text())
             for account in data['accounts']: account['quota']['fetchedAt']=0
             registry.write_text(json.dumps(data))
-            process=subprocess.Popen([str(BIN/'AgentMeterPreview')],env=env,stdout=subprocess.DEVNULL,stderr=subprocess.PIPE)
+            process=subprocess.Popen([str(BIN/'AgentMeterPreview'),'--verify-auto-refresh'],env=env,stdout=subprocess.DEVNULL,stderr=subprocess.PIPE)
             def wait_for_newer(previous, timeout):
                 deadline=time.monotonic()+timeout
                 while time.monotonic()<deadline:

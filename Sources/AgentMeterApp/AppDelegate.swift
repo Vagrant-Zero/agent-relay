@@ -62,12 +62,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             }
         } else {
             NSApp.setActivationPolicy(.accessory)
-            let item = NSStatusBar.system.statusItem(withLength: 28)
-            item.button?.image = MeterAppearance.symbol()
-            item.button?.toolTip = "Agent Meter"
-            let menu = NSMenu(); menu.delegate = self; menu.autoenablesItems = false
-            item.menu = menu; self.item = item
-            populate(menu)
+            // Integration checks exercise the real scheduler without adding a fake menu icon.
+            if !CommandLine.arguments.contains("--verify-auto-refresh") {
+                let item = NSStatusBar.system.statusItem(withLength: 28)
+                item.button?.image = MeterAppearance.symbol()
+                item.button?.toolTip = "Agent Meter"
+                let menu = NSMenu(); menu.delegate = self; menu.autoenablesItems = false
+                item.menu = menu; self.item = item
+                populate(menu)
+            }
             let timer = Timer(timeInterval: 5, repeats: true) { [weak self] _ in self?.refreshAutomatically() }
             timer.tolerance = 1
             RunLoop.main.add(timer, forMode: .common)
@@ -156,6 +159,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         add(menu, "菜单栏显示剩余额度", action: #selector(toggleMenuQuota))
         menu.items.last?.state = GlassPreferences.showMenuQuota ? .on : .off
         menu.items.last?.toolTip = "显示当前 CLI 账号的各周期剩余额度"
+        let periodItem = NSMenuItem(title: "额度周期", action: nil, keyEquivalent: "")
+        let periodMenu = NSMenu(); periodMenu.autoenablesItems = false
+        for period in MenuQuotaPeriod.allCases {
+            add(periodMenu, period.title, action: #selector(selectQuotaPeriod(_:)), value: period.rawValue)
+            periodMenu.items.last?.state = period.rawValue == GlassPreferences.menuQuotaPeriod ? .on : .off
+        }
+        periodItem.submenu = periodMenu; menu.addItem(periodItem)
         add(menu, "刷新额度", action: #selector(refresh), enabled: worker == nil && !registry.accounts.isEmpty)
         menu.items.last?.toolTip = "自动刷新：所有账号约每 30 秒查询一次"
         menu.addItem(.separator())
@@ -167,11 +177,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         button.imagePosition = GlassPreferences.showMenuQuota ? .imageLeading : .imageOnly
         button.font = .monospacedDigitSystemFont(ofSize: 11, weight: .medium)
         let account = registry.selected
-        let windows = [account?.quota?.primary, account?.quota?.secondary].compactMap { $0 }
-        let text = windows.map { "\($0.label) \($0.remainingPercent)%" }.joined(separator: " · ")
+        let period = MenuQuotaPeriod(rawValue: GlassPreferences.menuQuotaPeriod) ?? .both
+        let text = period.text(for: account?.quota)
         let stale = account?.quota?.isStale == true || account?.lastError != nil
         button.title = GlassPreferences.showMenuQuota ? " " + (text.isEmpty ? "额度 —" : text + (stale ? " *" : "")) : ""
         button.toolTip = "Agent Meter" + (account.map { " · CLI：\($0.alias)" } ?? " · 尚未选择账号") + (text.isEmpty ? "" : "\n剩余额度：" + text) + (stale ? "\n* 缓存数据，可在菜单中刷新额度" : "")
+    }
+    @objc private func selectQuotaPeriod(_ sender: NSMenuItem) {
+        guard let raw = sender.representedObject as? String, MenuQuotaPeriod(rawValue: raw) != nil else { return }
+        GlassPreferences.menuQuotaPeriod = raw
+        if let menu = item?.menu { populate(menu) }
     }
     @objc private func toggleMenuQuota() {
         GlassPreferences.showMenuQuota.toggle()

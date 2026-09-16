@@ -3,6 +3,10 @@ import AppKit
 enum GlassPreferences {
     static let defaults = UserDefaults(suiteName: "dev.local.agent-meter.preview.appearance")!
     static let changed = Notification.Name("dev.local.agent-meter.appearance-changed")
+    static var menuQuotaPeriod: String {
+        get { defaults.string(forKey: "menuQuotaPeriod") ?? "both" }
+        set { defaults.set(newValue, forKey: "menuQuotaPeriod") }
+    }
     static var showMenuQuota: Bool {
         get { defaults.bool(forKey: "showMenuQuota") }
         set { defaults.set(newValue, forKey: "showMenuQuota") }

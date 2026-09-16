@@ -3,6 +3,20 @@ import AgentMeterCore
 import CSQLite
 
 final class CoreTests {
+    func testMenuQuotaPeriodDoesNotFollowResponseOrder() throws {
+        let weekly: [String: Any] = ["usedPercent": 13, "windowDurationMins": 10080]
+        let hourly: [String: Any] = ["usedPercent": 22, "windowDurationMins": 300]
+        for limits in [["primary": hourly, "secondary": weekly], ["primary": weekly, "secondary": hourly]] {
+            let quota = try QuotaDecoder.decode(["rateLimits": limits])
+            expectEqual(MenuQuotaPeriod.fiveHours.text(for: quota), "5 小时 78%")
+            expectEqual(MenuQuotaPeriod.weekly.text(for: quota), "每周 87%")
+            expectEqual(MenuQuotaPeriod.both.text(for: quota), "5 小时 78% · 每周 87%")
+        }
+        let missing = try QuotaDecoder.decode(["rateLimits": ["primary": weekly]])
+        expectEqual(MenuQuotaPeriod.fiveHours.text(for: missing), "5 小时 —")
+        expectEqual(MenuQuotaPeriod.both.text(for: nil), "5 小时 — · 每周 —")
+    }
+
     func testQuotaRefreshSchedule() {
         let now = Date(timeIntervalSince1970: 1800000000)
         var registry = Registry()
@@ -136,6 +150,7 @@ func expectNoThrow<T>(_ operation: @autoclosure () throws -> T, file: StaticStri
         checks.testCredentialOverridesAreRemoved()
         try checks.testSessionScanRetainsRowsAndRecoversAfterLock()
         checks.testQuotaRefreshSchedule()
-        print("8 core checks passed")
+        try checks.testMenuQuotaPeriodDoesNotFollowResponseOrder()
+        print("9 core checks passed")
     }
 }
