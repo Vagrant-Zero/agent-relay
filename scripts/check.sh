@@ -6,6 +6,8 @@ test_python="${METER_TEST_PYTHON:-python3}"
 product_dir="$(swift build -c release --arch arm64 --show-bin-path)"
 "$product_dir/AgentMeterChecks"
 "$test_python" verification/test_cli.py
+"$test_python" verification/test_quota_layout.py
+"$test_python" verification/test_auto_refresh.py
 "$test_python" verification/test_native_bridge.py
 METER_TEST_CLI="$PWD/dist/Agent Meter Preview.app/Contents/MacOS/agent-meter" "$test_python" verification/test_sessions.py
 check_dir="$(mktemp -d)"

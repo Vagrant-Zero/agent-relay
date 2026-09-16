@@ -4,6 +4,14 @@ import Darwin
 
 signal(SIGPIPE, SIG_IGN)
 let application = NSApplication.shared
+if CommandLine.arguments.contains("--verify-quota-layout") {
+    do {
+        let manager = ManagerController(store: try Store())
+        let widths = [680, 740, 1000].map { manager.quotaTrackWidths(at: NSSize(width: $0, height: 470)) }
+        FileHandle.standardOutput.write(try JSONEncoder().encode(widths))
+        exit(0)
+    } catch { fputs("\(error.localizedDescription)\n", stderr); exit(1) }
+}
 if CommandLine.arguments.contains("--verify-session-load") {
     do {
         let ids = try SessionsController(store: Store()).verifyInitialLoad()

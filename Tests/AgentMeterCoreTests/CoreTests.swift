@@ -3,6 +3,27 @@ import AgentMeterCore
 import CSQLite
 
 final class CoreTests {
+    func testQuotaRefreshSchedule() {
+        let now = Date(timeIntervalSince1970: 1800000000)
+        var registry = Registry()
+        registry.accounts = ["a", "b"].map { Account(id: $0, alias: $0, email: "test@example.invalid", plan: "pro", profilePath: "/tmp/" + $0, managed: false) }
+        registry.selectedID = "b"
+        var schedule = QuotaRefreshSchedule()
+        expectEqual(schedule.next(in: registry, now: now), "b")
+        schedule.started("b", now: now)
+        expectEqual(schedule.next(in: registry, now: now), "a")
+        schedule.started("a", now: now)
+        expectNil(schedule.next(in: registry, now: now.addingTimeInterval(29)))
+        expectEqual(schedule.next(in: registry, now: now.addingTimeInterval(30)), "b")
+        // A manual refresh postpones the next background request for that account.
+        let data = Data("{\"fetchedAt\":\(now.addingTimeInterval(20).timeIntervalSinceReferenceDate)}".utf8)
+        registry.accounts[1].quota = try! JSONDecoder().decode(QuotaSnapshot.self, from: data)
+        expectEqual(schedule.next(in: registry, now: now.addingTimeInterval(30)), "a")
+        schedule.started("a", now: now.addingTimeInterval(30))
+        expectNil(schedule.next(in: registry, now: now.addingTimeInterval(49)))
+        expectEqual(schedule.next(in: registry, now: now.addingTimeInterval(50)), "b")
+    }
+
     func testSessionScanRetainsRowsAndRecoversAfterLock() throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: root) }
@@ -114,6 +135,7 @@ func expectNoThrow<T>(_ operation: @autoclosure () throws -> T, file: StaticStri
         try checks.testCancellation()
         checks.testCredentialOverridesAreRemoved()
         try checks.testSessionScanRetainsRowsAndRecoversAfterLock()
-        print("7 core checks passed")
+        checks.testQuotaRefreshSchedule()
+        print("8 core checks passed")
     }
 }

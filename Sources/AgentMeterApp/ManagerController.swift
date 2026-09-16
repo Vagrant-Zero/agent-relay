@@ -74,6 +74,15 @@ final class ManagerController: NSObject, NSWindowDelegate {
     func render(to url: URL, dark: Bool, size: NSSize) throws {
         try MeterAppearance.render(window: window, to: url, dark: dark, size: size)
     }
+    func quotaTrackWidths(at size: NSSize) -> [CGFloat] {
+        window.setContentSize(size)
+        window.contentView?.layoutSubtreeIfNeeded()
+        func collect(_ view: NSView) -> [CGFloat] {
+            if view is QuotaBar { return [view.bounds.width] }
+            return view.subviews.flatMap(collect)
+        }
+        return window.contentView.map(collect) ?? []
+    }
     private func label(_ text: String, size: CGFloat = 13, weight: NSFont.Weight = .regular, color: NSColor = .labelColor) -> NSTextField {
         let label = NSTextField(labelWithString: text)
         label.font = .systemFont(ofSize: size, weight: weight); label.textColor = color
@@ -202,8 +211,14 @@ final class ManagerController: NSObject, NSWindowDelegate {
         let identity = stack([name, label(account.email, size: 11, color: .secondaryLabelColor),
                               label("\(account.plan.capitalized) · 重置卡 \(account.quota?.resetCards.map(String.init) ?? "—")\(account.quota?.isStale == true ? " · 缓存" : "")", size: 10, color: .secondaryLabelColor)], vertical: true, spacing: 5)
         identity.widthAnchor.constraint(equalToConstant: 174).isActive = true
-        let metrics = stack([quotaView(account.quota?.primary, fallback: "额度")], spacing: 22)
-        if let second = account.quota?.secondary { metrics.addArrangedSubview(quotaView(second, fallback: "额度")) }
+        // Reserve two stable columns even when a refresh returns only one window.
+        let columnCount = 2
+        let windows = [account.quota?.primary, account.quota?.secondary].compactMap { $0 }
+        var columns: [NSView] = windows.isEmpty
+            ? [quotaView(nil, fallback: "额度")]
+            : windows.map { quotaView($0, fallback: "额度") }
+        while columns.count < columnCount { columns.append(NSView()) }
+        let metrics = stack(columns, spacing: 22)
         metrics.distribution = .fillEqually
         let menu = NSPopUpButton(frame: .zero, pullsDown: true)
         menu.controlSize = .small; menu.isBordered = false; menu.isEnabled = !isBusy
@@ -225,6 +240,9 @@ final class ManagerController: NSObject, NSWindowDelegate {
         menu.menu?.addItem(.separator())
         action("移除账号…") { [weak self] in self?.remove(account) }
         let row = stack([identity, metrics, menu], spacing: 20)
+        // Do not let percentage text, reset dates or popup item titles size the track.
+        menu.widthAnchor.constraint(equalToConstant: 64).isActive = true
+        metrics.widthAnchor.constraint(equalTo: row.widthAnchor, constant: -(174 + 64 + 40)).isActive = true
         metrics.setContentHuggingPriority(.defaultLow, for: .horizontal)
         var views: [NSView] = [row]
         if let error = account.lastError {

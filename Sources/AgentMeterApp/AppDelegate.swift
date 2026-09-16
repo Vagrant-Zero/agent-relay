@@ -7,6 +7,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var manager: ManagerController?
     private var store: Store!
     private var worker: Process?
+    private var refreshTimer: Timer?
+    private var refreshSchedule = QuotaRefreshSchedule()
     private var lastMessage: String?
     private var instanceFD: Int32 = -1
     private var ownsLock = false
@@ -66,6 +68,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             let menu = NSMenu(); menu.delegate = self; menu.autoenablesItems = false
             item.menu = menu; self.item = item
             populate(menu)
+            let timer = Timer(timeInterval: 5, repeats: true) { [weak self] _ in self?.refreshAutomatically() }
+            timer.tolerance = 1
+            RunLoop.main.add(timer, forMode: .common)
+            refreshTimer = timer
+            DispatchQueue.main.async { [weak self] in self?.refreshAutomatically() }
             if let index = CommandLine.arguments.firstIndex(of: "--smoke-menu-cycles"), index + 1 < CommandLine.arguments.count,
                let count = Int(CommandLine.arguments[index + 1]), (1...100).contains(count) {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in self?.smokeMenu(remaining: count) }
@@ -95,6 +102,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     func applicationWillTerminate(_ notification: Notification) {
         if let observer { DistributedNotificationCenter.default().removeObserver(observer) }
         if let commandObserver { DistributedNotificationCenter.default().removeObserver(commandObserver) }
+        refreshTimer?.invalidate()
         worker?.terminate()
         if isManager && ownsLock { try? FileManager.default.removeItem(at: store.root.appendingPathComponent("window.pid")) }
         if instanceFD >= 0 { flock(instanceFD, LOCK_UN); Darwin.close(instanceFD) }
@@ -149,6 +157,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.items.last?.state = GlassPreferences.showMenuQuota ? .on : .off
         menu.items.last?.toolTip = "显示当前 CLI 账号的各周期剩余额度"
         add(menu, "刷新额度", action: #selector(refresh), enabled: worker == nil && !registry.accounts.isEmpty)
+        menu.items.last?.toolTip = "自动刷新：所有账号约每 30 秒查询一次"
         menu.addItem(.separator())
         add(menu, "退出 Agent Meter", action: #selector(quit))
     }
@@ -198,13 +207,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc func refresh() { runWorker(["quota"]) }
     @objc func switchAccount(_ sender: NSMenuItem) { if let id = sender.representedObject as? String { runWorker(["switch", id]) } }
     @objc func quit() { NSApp.terminate(nil) }
-    private func runWorker(_ arguments: [String]) {
+    private func refreshAutomatically() {
+        guard !isManager, worker == nil,
+              let registry = try? store.read(),
+              let id = refreshSchedule.next(in: registry) else { return }
+        // Respect login/switch/refresh operations in the other process.
+        guard (try? store.locked { true }) == true else { return }
+        refreshSchedule.started(id)
+        runWorker(["quota", id], automatic: true)
+    }
+    private func runWorker(_ arguments: [String], automatic: Bool = false) {
         guard worker == nil else { return }
         let process = Process()
         process.executableURL = Bundle.main.executableURL?.deletingLastPathComponent().appendingPathComponent("agent-meter")
         process.arguments = arguments + ["--json"]
         let pipe = Pipe(); process.standardOutput = pipe; process.standardError = FileHandle.nullDevice; process.standardInput = FileHandle.nullDevice
-        worker = process; lastMessage = nil
+        worker = process
+        if !automatic { lastMessage = nil }
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             var data = Data()
             var errorText: String?
@@ -226,8 +245,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             let result = errorText
             DispatchQueue.main.async {
                 guard let self else { return }
-                self.worker = nil; self.lastMessage = result.map { String($0.prefix(65)) }
+                self.worker = nil
+                if !automatic { self.lastMessage = result.map { String($0.prefix(65)) } }
                 if let menu = self.item?.menu { self.populate(menu) }
+                if automatic { self.refreshAutomatically() }
             }
         }
     }
