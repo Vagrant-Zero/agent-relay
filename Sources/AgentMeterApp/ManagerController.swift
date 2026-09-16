@@ -59,6 +59,8 @@ final class ManagerController: NSObject, NSWindowDelegate {
     }
     func show() {
         shouldClose = false
+        NSApp.unhide(nil)
+        if window.isMiniaturized { window.deminiaturize(nil) }
         window.center(); window.makeKeyAndOrderFront(nil)
         NSApp.activate()
         if let index = CommandLine.arguments.firstIndex(of: "--snapshot"), index + 1 < CommandLine.arguments.count {

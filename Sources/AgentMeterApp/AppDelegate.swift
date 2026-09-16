@@ -13,7 +13,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var instanceFD: Int32 = -1
     private var ownsLock = false
     private var observer: NSObjectProtocol?
-    private var managerProcess: Process?
+    private var launchingManager = false
     private var commandObserver: NSObjectProtocol?
     private let requestName = Notification.Name("dev.local.agent-meter.window-request")
     private let isManager = CommandLine.arguments.contains("--manage")
@@ -192,12 +192,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         GlassPreferences.showMenuQuota.toggle()
         if let menu = item?.menu { populate(menu) }
     }
-    private func activateManager() {
+    private func runningManager() -> NSRunningApplication? {
         let path = store.root.appendingPathComponent("window.pid")
-        if let data = try? String(contentsOf: path, encoding: .utf8), let pid = Int32(data),
-           let app = NSRunningApplication(processIdentifier: pid), app.bundleIdentifier == Bundle.main.bundleIdentifier {
-            app.activate()
-        }
+        guard let data = try? String(contentsOf: path, encoding: .utf8), let pid = Int32(data),
+              let app = NSRunningApplication(processIdentifier: pid), !app.isTerminated,
+              app.bundleIdentifier == Bundle.main.bundleIdentifier,
+              app.bundleURL?.standardizedFileURL == Bundle.main.bundleURL.standardizedFileURL else { return nil }
+        return app
+    }
+    private func activateManager() {
+        guard let app = runningManager() else { return }
+        NSApp.yieldActivation(to: app)
+        app.activate(from: .current, options: [.activateAllWindows])
+    }
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        if isManager { manager?.show() }
+        else { launchManager(action: "--manage") }
+        return true
     }
     private func handleRequest(_ action: String) {
         switch action {
@@ -212,11 +223,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc func openSessions() { launchManager(action: "--sessions") }
     @objc func openAppearance() { launchManager(action: "--appearance") }
     private func launchManager(action: String) {
-        let process = Process()
-        process.executableURL = Bundle.main.executableURL
-        process.arguments = ["--manage"] + (action == "--manage" ? [] : [action])
-        process.standardInput = FileHandle.nullDevice; process.standardOutput = FileHandle.nullDevice; process.standardError = FileHandle.nullDevice
-        do { try process.run(); managerProcess = process } catch { lastMessage = "管理窗口启动失败。" }
+        if let app = runningManager() {
+            NSApp.yieldActivation(to: app)
+            DistributedNotificationCenter.default().postNotificationName(requestName, object: store.root.path, userInfo: ["action": action], deliverImmediately: true)
+            app.activate(from: .current, options: [.activateAllWindows])
+            return
+        }
+        guard !launchingManager else { return }
+        launchingManager = true
+        let configuration = NSWorkspace.OpenConfiguration()
+        configuration.createsNewApplicationInstance = true
+        configuration.activates = true
+        configuration.addsToRecentItems = false
+        configuration.arguments = ["--manage"] + (action == "--manage" ? [] : [action])
+        configuration.environment = ProcessInfo.processInfo.environment
+        NSWorkspace.shared.openApplication(at: Bundle.main.bundleURL, configuration: configuration) { [weak self] app, error in
+            DispatchQueue.main.async {
+                guard let self else { return }
+                self.launchingManager = false
+                if let app {
+                    NSApp.yieldActivation(to: app)
+                    app.activate(from: .current, options: [.activateAllWindows])
+                } else { self.lastMessage = "管理窗口启动失败：\(error?.localizedDescription ?? "未知错误")" }
+            }
+        }
     }
     @objc func switchCLI(_ sender: NSMenuItem) { if let id = sender.representedObject as? String { runWorker(["switch", id, "--cli-only"]) } }
     @objc func refresh() { runWorker(["quota"]) }
