@@ -13,23 +13,23 @@ interrupt.setEventHandler { cancellation.cancel() }; interrupt.resume()
 termination.setEventHandler { cancellation.cancel() }; termination.resume()
 
 let help = """
-Agent Meter Preview 0.1.5
+Agent Relay 0.2.0
 
-  agent-meter accounts [--json]                 列出账号与缓存额度
-  agent-meter login <别名> [--no-open]           在官方网页添加账号
-  agent-meter import <别名> --profile <目录>    引用已有 Codex 登录目录
-  agent-meter quota [别名] [--cached] [--json]  查询一个或所有账号额度
-  agent-meter switch <别名> [--cli-only]        切换 CLI 默认账号和官方桌面端
-  agent-meter run [codex] [--account <别名>] [-- <Codex 参数>]
-  agent-meter sessions [--json] [--source <目录>]  列出各账号的本地会话
-  agent-meter resume [--account <别名>] [ID | --last] [--all]
-  agent-meter status [--json]                  查看默认账号与桌面实际状态
-  agent-meter desktop stop                    正常退出本软件启动的桌面端
-  agent-meter remove <别名>                    移除登记，保留凭据与历史
-  agent-meter doctor [--json]                  检查本机环境
+  agent-relay accounts [--json]                 列出账号与缓存额度
+  agent-relay login <别名> [--no-open]           在官方网页添加账号
+  agent-relay import <别名> --profile <目录>    引用已有 Codex 登录目录
+  agent-relay quota [别名] [--cached] [--json]  查询一个或所有账号额度
+  agent-relay switch <别名> [--cli-only]        切换 CLI 默认账号和官方桌面端
+  agent-relay run [codex] [--account <别名>] [-- <Codex 参数>]
+  agent-relay sessions [--json] [--source <目录>]  列出各账号的本地会话
+  agent-relay resume [--account <别名>] [ID | --last] [--all]
+  agent-relay status [--json]                  查看默认账号与桌面实际状态
+  agent-relay desktop stop                    正常退出本软件启动的桌面端
+  agent-relay remove <别名>                    移除登记，保留凭据与历史
+  agent-relay doctor [--json]                  检查本机环境
 
 默认切换会启动/重启官方桌面端并验证身份。已有 CLI 会话不受影响。
-普通 codex 命令不受本软件接管；使用 agent-meter run 启动所选账号。
+普通 codex 命令不受本软件接管；使用 agent-relay run 启动所选账号。
 AGENT_METER_HOME 可指定独立的数据目录。
 """
 
@@ -58,7 +58,7 @@ func flag(_ key: String, in args: inout [String]) -> Bool {
     guard let index = args.firstIndex(of: key) else { return false }; args.remove(at: index); return true
 }
 func exactly(_ count: Int, _ args: [String]) throws {
-    guard args.count == count else { throw MeterError.message("参数不正确，使用 agent-meter --help 查看用法。") }
+    guard args.count == count else { throw MeterError.message("参数不正确，使用 agent-relay --help 查看用法。") }
 }
 
 var args = Array(CommandLine.arguments.dropFirst())
@@ -99,7 +99,7 @@ func resumeArguments(_ original: [String], store: Store, profile: String, additi
     if let position = positional, !last {
         let key = forwarded.remove(at: position)
         let matches = sessions.filter { $0.id == key || $0.title == key }
-        guard matches.count == 1, let session = matches.first else { throw MeterError.message("会话不存在或名称不唯一：\(key)。使用 agent-meter sessions 查看 ID。") }
+        guard matches.count == 1, let session = matches.first else { throw MeterError.message("会话不存在或名称不唯一：\(key)。使用 agent-relay sessions 查看 ID。") }
         chosen = session
     } else {
         if !all {
@@ -125,7 +125,7 @@ func resumeArguments(_ original: [String], store: Store, profile: String, additi
 }
 do {
     if ["help", "--help", "-h"].contains(command) { print(help); exit(0) }
-    if ["--version", "version"].contains(command) { print("0.1.5"); exit(0) }
+    if ["--version", "version"].contains(command) { print("0.2.0"); exit(0) }
     let store = try Store()
     let service = AccountService(store: store, cancellation: cancellation)
     switch command {
@@ -133,7 +133,7 @@ do {
         try exactly(0, args)
         let registry = try store.read()
         if json { try output(registry) }
-        else if registry.accounts.isEmpty { print("尚无账号。使用 agent-meter login <别名> 添加。") }
+        else if registry.accounts.isEmpty { print("尚无账号。使用 agent-relay login <别名> 添加。") }
         else { registry.accounts.forEach { render($0, selected: registry.selectedID == $0.id) } }
     case "login":
         let noOpen = flag("--no-open", in: &args)
@@ -187,7 +187,7 @@ do {
             print("桌面端：\(verified ? "已验证 · " + (registry.accounts.first { $0.id == registry.desktop?.accountID }?.alias ?? "未知") : (running ? "运行中，身份未确认" : "未由本软件运行"))")
         }
     case "desktop":
-        guard args == ["stop"] else { throw MeterError.message("用法：agent-meter desktop stop") }
+        guard args == ["stop"] else { throw MeterError.message("用法：agent-relay desktop stop") }
         try DesktopController(store: store, cancellation: cancellation).stop()
         if json { try output(["stopped": true]) } else { print("桌面端已正常退出。") }
     case "remove":
@@ -240,9 +240,9 @@ do {
         let executable = try? CodexEnvironment.executable()
         let application = try? DesktopController.application()
         let version = application.flatMap { Bundle(url: $0)?.infoDictionary?["CFBundleShortVersionString"] as? String }
-        let result = ["version": "0.1.5", "codex": executable?.path ?? "未安装", "desktop": application?.path ?? "未安装", "desktopVersion": version ?? "未知", "desktopSupported": version == "26.908.40834" ? "yes" : "no", "dataDirectory": store.root.path, "desktopAdapter": (try? DesktopController.bridgeExecutable().path) ?? "缺失"]
+        let result = ["version": "0.2.0", "codex": executable?.path ?? "未安装", "desktop": application?.path ?? "未安装", "desktopVersion": version ?? "未知", "desktopSupported": version == "26.908.40834" ? "yes" : "no", "dataDirectory": store.root.path, "desktopAdapter": (try? DesktopController.bridgeExecutable().path) ?? "缺失"]
         if json { try output(result) } else { for key in result.keys.sorted() { print("\(key): \(result[key]!)") } }
-    default: throw MeterError.message("未知命令：\(command)。使用 agent-meter --help 查看用法。")
+    default: throw MeterError.message("未知命令：\(command)。使用 agent-relay --help 查看用法。")
     }
 } catch {
     if json { try? output(["error": error.localizedDescription]) }

@@ -66,7 +66,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             if !CommandLine.arguments.contains("--verify-auto-refresh") {
                 let item = NSStatusBar.system.statusItem(withLength: 28)
                 item.button?.image = MeterAppearance.symbol()
-                item.button?.toolTip = "Agent Meter"
+                item.button?.toolTip = "Agent Relay"
                 let menu = NSMenu(); menu.delegate = self; menu.autoenablesItems = false
                 item.menu = menu; self.item = item
                 populate(menu)
@@ -123,7 +123,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
     private func populate(_ menu: NSMenu) {
         menu.removeAllItems()
-        add(menu, "Agent Meter")
+        add(menu, "Agent Relay")
         if let lastMessage { add(menu, lastMessage) }
         if worker != nil { add(menu, "正在处理…") }
         let registry: Registry
@@ -169,7 +169,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         add(menu, "刷新额度", action: #selector(refresh), enabled: worker == nil && !registry.accounts.isEmpty)
         menu.items.last?.toolTip = "自动刷新：所有账号约每 30 秒查询一次"
         menu.addItem(.separator())
-        add(menu, "退出 Agent Meter", action: #selector(quit))
+        add(menu, "退出 Agent Relay", action: #selector(quit))
     }
     private func updateStatusItem(_ registry: Registry) {
         guard let item, let button = item.button else { return }
@@ -181,7 +181,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let text = period.text(for: account?.quota)
         let stale = account?.quota?.isStale == true || account?.lastError != nil
         button.title = GlassPreferences.showMenuQuota ? " " + (text.isEmpty ? "额度 —" : text + (stale ? " *" : "")) : ""
-        button.toolTip = "Agent Meter" + (account.map { " · CLI：\($0.alias)" } ?? " · 尚未选择账号") + (text.isEmpty ? "" : "\n剩余额度：" + text) + (stale ? "\n* 缓存数据，可在菜单中刷新额度" : "")
+        button.toolTip = "Agent Relay" + (account.map { " · CLI：\($0.alias)" } ?? " · 尚未选择账号") + (text.isEmpty ? "" : "\n剩余额度：" + text) + (stale ? "\n* 缓存数据，可在菜单中刷新额度" : "")
     }
     @objc private func selectQuotaPeriod(_ sender: NSMenuItem) {
         guard let raw = sender.representedObject as? String, MenuQuotaPeriod(rawValue: raw) != nil else { return }
@@ -264,7 +264,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private func runWorker(_ arguments: [String], automatic: Bool = false) {
         guard worker == nil else { return }
         let process = Process()
-        process.executableURL = Bundle.main.executableURL?.deletingLastPathComponent().appendingPathComponent("agent-meter")
+        process.executableURL = Bundle.main.executableURL?.deletingLastPathComponent().appendingPathComponent("agent-relay")
         process.arguments = arguments + ["--json"]
         let pipe = Pipe(); process.standardOutput = pipe; process.standardError = FileHandle.nullDevice; process.standardInput = FileHandle.nullDevice
         worker = process
@@ -298,7 +298,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
     }
     private func showFatal(_ text: String) {
-        let alert = NSAlert(); alert.messageText = "Agent Meter 无法启动"; alert.informativeText = text; alert.runModal()
+        let alert = NSAlert(); alert.messageText = "Agent Relay 无法启动"; alert.informativeText = text; alert.runModal()
         NSApp.terminate(nil)
     }
 }

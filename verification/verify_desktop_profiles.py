@@ -163,7 +163,7 @@ def main():
     parser.add_argument("--settle-seconds", type=float, default=5)
     args = parser.parse_args()
     if args.scratch is None:
-        args.scratch = Path(tempfile.mkdtemp(prefix="agent-meter-desktop-verify-"))
+        args.scratch = Path(tempfile.mkdtemp(prefix="agent-relay-desktop-verify-"))
     args.scratch.mkdir(mode=0o700, parents=True, exist_ok=True)
     (args.scratch / "app-data").mkdir(mode=0o700, exist_ok=True)
     if not (args.scratch / "quit-app").is_file():

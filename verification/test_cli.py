@@ -10,7 +10,7 @@ import tempfile
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
-CLI = ROOT / 'dist/Agent Meter Preview.app/Contents/MacOS/agent-meter'
+CLI = ROOT / 'dist/Agent Relay.app/Contents/MacOS/agent-relay'
 FAKE = '''#!/usr/bin/env python3
 import sys,json,os,pathlib,time
 profile=pathlib.Path(os.environ['CODEX_HOME'])
@@ -43,7 +43,7 @@ for line in sys.stdin:
 
 class CLITests(unittest.TestCase):
     def setUp(self):
-        self.tmp = tempfile.TemporaryDirectory(prefix='agent-meter-cli-test-')
+        self.tmp = tempfile.TemporaryDirectory(prefix='agent-relay-cli-test-')
         self.root = Path(self.tmp.name)
         fake = self.root/'codex';fake.write_text(FAKE);fake.chmod(0o700)
         self.env = dict(os.environ, AGENT_METER_HOME=str(self.root/'meter'), AGENT_METER_CODEX=str(fake), OPENAI_API_KEY='test-override')

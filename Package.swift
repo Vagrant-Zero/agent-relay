@@ -5,9 +5,9 @@ let package = Package(
     name: "AgentMeter",
     platforms: [.macOS("26.0")],
     products: [
-        .executable(name: "AgentMeterPreview", targets: ["AgentMeterApp"]),
-        .executable(name: "agent-meter", targets: ["AgentMeterCLI"]),
-        .executable(name: "agent-meter-bridge", targets: ["AgentMeterBridge"])
+        .executable(name: "AgentRelay", targets: ["AgentMeterApp"]),
+        .executable(name: "agent-relay", targets: ["AgentMeterCLI"]),
+        .executable(name: "agent-relay-bridge", targets: ["AgentMeterBridge"])
     ],
     targets: [
         .systemLibrary(name: "CSQLite"),

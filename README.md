@@ -1,10 +1,10 @@
-# Agent Meter
+# Agent Relay
 
-一个简洁的 macOS 菜单栏工具，用来管理 Codex 账号、查看剩余额度，并在切换账号后继续本地会话。
+统一管理 coding agent 的账号与本地会话。一个简洁的 macOS 菜单栏工具，支持快捷切换账号、接续历史对话，并查看剩余额度。当前已接入 Codex，后续将扩展其他平台。
 
 **macOS 26+ · Apple Silicon · 原生 Liquid Glass · 预览版**
 
-[下载 DMG](https://github.com/Vagrant-Zero/agent-meter/releases) · [使用问题与反馈](https://github.com/Vagrant-Zero/agent-meter/issues) · [发布流程](docs/releases.md)
+[下载 DMG](https://github.com/Vagrant-Zero/agent-relay/releases) · [使用问题与反馈](https://github.com/Vagrant-Zero/agent-relay/issues) · [发布流程](docs/releases.md)
 
 ## 可以做什么
 
@@ -15,19 +15,21 @@
 - **可选菜单栏额度**：显示或隐藏当前 CLI 账号的剩余百分比。
 - **原生玻璃界面**：调整背景透明度，保留清晰的文字和标题栏，支持系统深浅色外观。
 
-目前仅支持 Codex，尚未接入 Claude。Agent Meter 是独立项目，与 OpenAI 无隶属关系。
+目前仅支持 Codex，尚未接入 Claude。Agent Relay 是独立项目，与 OpenAI 无隶属关系。
 
 ## 下载与安装
 
-1. 打开 [Releases](https://github.com/Vagrant-Zero/agent-meter/releases)，下载 `Agent-Meter-<版本>-macos-arm64.dmg`。
-2. 打开 DMG，将 **Agent Meter Preview.app** 拖入 **Applications**。
+1. 打开 [Releases](https://github.com/Vagrant-Zero/agent-relay/releases)，下载 `Agent-Relay-<版本>-macos-arm64.dmg`。
+2. 打开 DMG，将 **Agent Relay.app** 拖入 **Applications**。
 3. 从 Applications 启动应用，点击菜单栏的环形图标。
 
 当前版本采用临时签名，**尚未进行 Apple Developer ID 签名和公证**。首次打开若被 macOS 阻止，请在“系统设置 → 隐私与安全性”中核对应用来源后选择“仍要打开”，无需关闭系统安全保护。
 
 使用前需要已安装官方 Codex CLI，或安装包含 CLI 的官方 Codex 桌面应用。应用会检查常见安装路径；自定义 CLI 路径可通过 `AGENT_METER_CODEX` 指定。官方客户端不包含在 DMG 中。
 
-升级时退出 Agent Meter，再用新版覆盖应用即可。账号与历史不存储在应用包内，不会因覆盖应用而删除。当前没有应用内自动更新。
+升级时退出 Agent Relay，再用新版覆盖应用即可。账号与历史不存储在应用包内，不会因覆盖应用而删除。当前没有应用内自动更新。
+
+从 Agent Meter 升级：先退出旧应用，再打开 Agent Relay。沿用原有数据目录和偏好设置，无需重新登录或导入会话。若 `.zshrc` 曾直接引用旧应用包，请将 source 路径改为上面的新应用名。旧命令和旧应用路径不再提供兼容入口。
 
 ## 第一次使用
 
@@ -72,10 +74,10 @@
 如果希望在软件里切换账号后，终端直接运行 `codex resume` 就使用新账号，在 `~/.zshrc` **末尾**加入：
 
 ```sh
-source "/Applications/Agent Meter Preview.app/Contents/Resources/codex.zsh"
+source "/Applications/Agent Relay.app/Contents/Resources/codex.zsh"
 ```
 
-若安装在用户目录，将路径改为 `$HOME/Applications/Agent Meter Preview.app/Contents/Resources/codex.zsh`。源码开发也可以直接 source `scripts/codex-resume.zsh`。
+若安装在用户目录，将路径改为 `$HOME/Applications/Agent Relay.app/Contents/Resources/codex.zsh`。源码开发也可以直接 source `scripts/codex-resume.zsh`。
 
 首次接入后执行一次 `source ~/.zshrc`，或新开终端。以后在软件中切换账号，已打开的终端也会在下一次运行 `codex` 时读取最新选择，无需再次 source：
 
@@ -94,47 +96,47 @@ codex resume <会话ID>
 DMG 安装不会自动修改 shell 配置。可直接使用应用包内的 CLI：
 
 ```sh
-"/Applications/Agent Meter Preview.app/Contents/MacOS/agent-meter" --help
+"/Applications/Agent Relay.app/Contents/MacOS/agent-relay" --help
 ```
 
 如果经常使用，可在 `~/.zshrc` 加入以下一行，再执行 `source ~/.zshrc`：
 
 ```sh
-export PATH="/Applications/Agent Meter Preview.app/Contents/MacOS:$PATH"
+export PATH="/Applications/Agent Relay.app/Contents/MacOS:$PATH"
 ```
 
 常用命令：
 
 ```sh
 # 添加和查看账号
-agent-meter login personal
-agent-meter login work
-agent-meter accounts
-agent-meter quota
+agent-relay login personal
+agent-relay login work
+agent-relay accounts
+agent-relay quota
 
 # 引用已有账号目录，不复制凭据
-agent-meter import work --profile /path/to/codex-profile
+agent-relay import work --profile /path/to/codex-profile
 
 # 切换默认账号，或直接指定账号启动 Codex
-agent-meter switch work --cli-only
-agent-meter run codex
-agent-meter run codex --account personal -- --help
+agent-relay switch work --cli-only
+agent-relay run codex
+agent-relay run codex --account personal -- --help
 
 # 同时切换官方桌面端与 CLI
-agent-meter switch work
-agent-meter status --json
+agent-relay switch work
+agent-relay status --json
 
 # 查找与恢复会话
-agent-meter sessions
-agent-meter resume --account work --all
-agent-meter resume --account work <会话ID>
-agent-meter resume --profile ~/.codex-profiles/a <会话ID>
+agent-relay sessions
+agent-relay resume --account work --all
+agent-relay resume --account work <会话ID>
+agent-relay resume --profile ~/.codex-profiles/a <会话ID>
 
 # 环境检查
-agent-meter doctor --json
+agent-relay doctor --json
 ```
 
-`run` 将 `--` 后的参数传给官方 CLI，不固定模型。更多选项见 `agent-meter --help`。
+`run` 将 `--` 后的参数传给官方 CLI，不固定模型。更多选项见 `agent-relay --help`。
 
 ## 数据保存在哪里
 
@@ -165,22 +167,22 @@ agent-meter doctor --json
 ## 当前限制
 
 - **系统与架构**：仅支持 macOS 26+、Apple Silicon，不提供 Intel 版本。
-- **桌面切换**：当前适配 `com.openai.codex` **26.908.40834**。其他版本会阻止桌面切换，CLI 功能仍可使用。由 Dock/Finder 启动的桌面端需要先手动退出，再由 Agent Meter 接管启动。
+- **桌面切换**：当前适配 `com.openai.codex` **26.908.40834**。其他版本会阻止桌面切换，CLI 功能仍可使用。由 Dock/Finder 启动的桌面端需要先手动退出，再由 Agent Relay 接管启动。
 - **会话恢复**：目前适配 Codex CLI **0.154** 的 `state_5.sqlite` 及相关分页历史。其他格式不能保证可恢复，遇到不兼容会报错。
 - **运行中的任务**：桌面端存在已观察到的活动任务，或无法可靠判断状态时，会拒绝切换；不会强制杀死官方桌面主进程。
 - **预览状态**：尚未完成长时间稳定性验收。官方客户端更新可能影响兼容性。
 
-遇到问题请在 [Issues](https://github.com/Vagrant-Zero/agent-meter/issues) 提供 macOS 版本、Agent Meter 版本、官方 Codex 版本及复现步骤；分享日志前请去除凭据和私人对话。
+遇到问题请在 [Issues](https://github.com/Vagrant-Zero/agent-relay/issues) 提供 macOS 版本、Agent Relay 版本、官方 Codex 版本及复现步骤；分享日志前请去除凭据和私人对话。
 
 ## 从源码构建
 
 需要 Apple Silicon Mac、macOS 26+，以及 Swift 6.2+ 和 macOS 26 SDK（Xcode 26 或更新工具链）。自动测试另需 Python 3.11+。
 
 ```sh
-git clone https://github.com/Vagrant-Zero/agent-meter.git
-cd agent-meter
+git clone https://github.com/Vagrant-Zero/agent-relay.git
+cd agent-relay
 ./scripts/build.sh
-open "dist/Agent Meter Preview.app"
+open "dist/Agent Relay.app"
 ```
 
 可选的本机安装脚本会安装到 `~/Applications`，并在 `~/.local/bin` 创建 CLI 链接：

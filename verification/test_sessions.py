@@ -8,7 +8,7 @@ import tempfile
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
-CLI = Path(os.environ.get('METER_TEST_CLI', str(ROOT / '.build/debug/agent-meter'))).resolve()
+CLI = Path(os.environ.get('METER_TEST_CLI', str(ROOT / '.build/debug/agent-relay'))).resolve()
 
 class SessionsTests(unittest.TestCase):
     def setUp(self):

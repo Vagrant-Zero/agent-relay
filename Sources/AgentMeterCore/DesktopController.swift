@@ -27,8 +27,8 @@ public final class DesktopController {
     public static func bridgeExecutable() throws -> URL {
         let current = (Bundle.main.executableURL ?? URL(fileURLWithPath: CommandLine.arguments[0])).standardizedFileURL.resolvingSymlinksInPath()
         let candidates = [
-            current.deletingLastPathComponent().appendingPathComponent("agent-meter-bridge"),
-            Bundle.main.bundleURL.appendingPathComponent("Contents/MacOS/agent-meter-bridge")
+            current.deletingLastPathComponent().appendingPathComponent("agent-relay-bridge"),
+            Bundle.main.bundleURL.appendingPathComponent("Contents/MacOS/agent-relay-bridge")
         ]
         guard let url = candidates.first(where: { FileManager.default.isExecutableFile(atPath: $0.path) }) else {
             throw MeterError.message("缺少桌面适配器，请重新运行构建脚本。")

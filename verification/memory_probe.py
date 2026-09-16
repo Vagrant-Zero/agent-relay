@@ -10,7 +10,7 @@ import subprocess
 import time
 
 ROOT = Path(__file__).resolve().parents[1]
-APP = ROOT / 'dist/Agent Meter Preview.app/Contents/MacOS/AgentMeterPreview'
+APP = ROOT / 'dist/Agent Relay.app/Contents/MacOS/AgentRelay'
 
 
 def footprint(pid):

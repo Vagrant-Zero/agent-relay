@@ -129,7 +129,7 @@ enum MeterAppearance {
             return true
         }
         image.isTemplate = true
-        image.accessibilityDescription = "Agent Meter"
+        image.accessibilityDescription = "Agent Relay"
         return image
     }
 

@@ -181,7 +181,7 @@ final class SessionsController: NSObject, NSTableViewDataSource, NSTableViewDele
         let session = visible[table.selectedRow]
         do {
             _ = try session.resumeArguments()
-            let cli = Bundle.main.bundleURL.appendingPathComponent("Contents/MacOS/agent-meter").path
+            let cli = Bundle.main.bundleURL.appendingPathComponent("Contents/MacOS/agent-relay").path
             func quote(_ s: String) -> String { "'" + s.replacingOccurrences(of: "'", with: "'\\''") + "'" }
             let folder = store.root.appendingPathComponent("terminal-launchers")
             try Store.privateDirectory(folder)

@@ -10,7 +10,7 @@ import time
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
-BRIDGE = ROOT / 'dist/Agent Meter Preview.app/Contents/MacOS/agent-meter-bridge'
+BRIDGE = ROOT / 'dist/Agent Relay.app/Contents/MacOS/agent-relay-bridge'
 FAKE = '''#!/usr/bin/env python3
 import sys,json
 for line in sys.stdin:
@@ -27,7 +27,7 @@ for line in sys.stdin:
 
 class BridgeTests(unittest.TestCase):
     def setUp(self):
-        self.directory = tempfile.TemporaryDirectory(prefix='agent-meter-bridge-test-')
+        self.directory = tempfile.TemporaryDirectory(prefix='agent-relay-bridge-test-')
         self.root = Path(self.directory.name)
         fake = self.root / 'codex'
         fake.write_text(FAKE); fake.chmod(0o700)

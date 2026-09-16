@@ -48,7 +48,7 @@ final class ManagerController: NSObject, NSWindowDelegate {
         window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 740, height: 470),
                           styleMask: [.titled, .closable, .resizable, .fullSizeContentView], backing: .buffered, defer: false)
         super.init()
-        window.title = "Agent Meter"
+        window.title = "Agent Relay"
         window.titlebarAppearsTransparent = true
         window.isReleasedWhenClosed = false
         window.minSize = NSSize(width: 680, height: 380)
@@ -125,7 +125,7 @@ final class ManagerController: NSObject, NSWindowDelegate {
         let mark = NSImageView(image: MeterAppearance.symbol())
         mark.contentTintColor = .labelColor
         mark.widthAnchor.constraint(equalToConstant: 24).isActive = true
-        let heading = label("Agent Meter", size: 18, weight: .medium)
+        let heading = label("Agent Relay", size: 18, weight: .medium)
         let sessions = ActionButton("本地会话") { [weak self] in self?.showSessions() }
         let appearance = ActionButton("") { [weak self] in self?.showAppearance() }
         appearance.isBordered = false

@@ -9,7 +9,7 @@ import unittest
 from test_cli import FAKE
 
 ROOT = Path(__file__).resolve().parents[1]
-BIN = ROOT / 'dist/Agent Meter Preview.app/Contents/MacOS'
+BIN = ROOT / 'dist/Agent Relay.app/Contents/MacOS'
 
 class AutoRefreshTests(unittest.TestCase):
     def test_refreshes_all_accounts_on_launch_and_again_after_30_seconds(self):
@@ -19,12 +19,12 @@ class AutoRefreshTests(unittest.TestCase):
             env = dict(os.environ, AGENT_METER_HOME=str(root/'meter'), AGENT_METER_CODEX=str(fake))
             for alias in ['a','b']:
                 profile=root/alias;profile.mkdir()
-                subprocess.run([str(BIN/'agent-meter'),'import',alias,'--profile',str(profile)],env=env,check=True,capture_output=True)
+                subprocess.run([str(BIN/'agent-relay'),'import',alias,'--profile',str(profile)],env=env,check=True,capture_output=True)
             registry=root/'meter/accounts.json'
             data=json.loads(registry.read_text())
             for account in data['accounts']: account['quota']['fetchedAt']=0
             registry.write_text(json.dumps(data))
-            process=subprocess.Popen([str(BIN/'AgentMeterPreview'),'--verify-auto-refresh'],env=env,stdout=subprocess.DEVNULL,stderr=subprocess.PIPE)
+            process=subprocess.Popen([str(BIN/'AgentRelay'),'--verify-auto-refresh'],env=env,stdout=subprocess.DEVNULL,stderr=subprocess.PIPE)
             def wait_for_newer(previous, timeout):
                 deadline=time.monotonic()+timeout
                 while time.monotonic()<deadline:

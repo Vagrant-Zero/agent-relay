@@ -9,7 +9,7 @@ product_dir="$(swift build -c release --arch arm64 --show-bin-path)"
 "$test_python" verification/test_quota_layout.py
 "$test_python" verification/test_auto_refresh.py
 "$test_python" verification/test_native_bridge.py
-METER_TEST_CLI="$PWD/dist/Agent Meter Preview.app/Contents/MacOS/agent-meter" "$test_python" verification/test_sessions.py
+METER_TEST_CLI="$PWD/dist/Agent Relay.app/Contents/MacOS/agent-relay" "$test_python" verification/test_sessions.py
 check_dir="$(mktemp -d)"
 trap 'rm -rf "$check_dir"' EXIT
 cp verification/appearance_checks.swift "$check_dir/main.swift"

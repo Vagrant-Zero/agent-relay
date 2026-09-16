@@ -1,5 +1,5 @@
 # Optional zsh integration. Source once, after any existing Codex wrappers.
-# Every invocation reads Agent Meter's current selection, including in existing shells.
+# Every invocation reads Agent Relay's current selection, including in existing shells.
 function _agent_meter_cli() {
   local meter_cli
   if [[ -n "${AGENT_METER_CLI:-}" ]]; then
@@ -7,13 +7,13 @@ function _agent_meter_cli() {
     print -r -- "$AGENT_METER_CLI"; return
   fi
   for meter_cli in \
-    "$HOME/Applications/Agent Meter Preview.app/Contents/MacOS/agent-meter" \
-    "/Applications/Agent Meter Preview.app/Contents/MacOS/agent-meter"; do
+    "$HOME/Applications/Agent Relay.app/Contents/MacOS/agent-relay" \
+    "/Applications/Agent Relay.app/Contents/MacOS/agent-relay"; do
     if [[ -x "$meter_cli" ]]; then print -r -- "$meter_cli"; return; fi
   done
-  meter_cli="$(whence -p agent-meter)"
+  meter_cli="$(whence -p agent-relay)"
   if [[ -n "$meter_cli" && -x "$meter_cli" ]]; then print -r -- "$meter_cli"; return; fi
-  print -u2 -- '未找到 Agent Meter；请重新安装应用。'
+  print -u2 -- '未找到 Agent Relay；请重新安装应用。'
   return 127
 }
 function codex() {

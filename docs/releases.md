@@ -12,7 +12,7 @@
 ./scripts/package-dmg.sh
 ```
 
-产物：`dist/Agent-Meter-0.1.0-macos-arm64.dmg` 和对应 `.sha256` 文件。
+产物：`dist/Agent-Relay-0.1.0-macos-arm64.dmg` 和对应 `.sha256` 文件。
 DMG 包含应用、Applications 快捷方式和安装说明。应用内已包含本项目 CLI 与适配器，不包含官方 Codex。
 
 GitHub Actions 的 `Checks` 检查 main 分支和拉取请求，也可手动运行。
@@ -20,7 +20,7 @@ GitHub Actions 的 `Checks` 检查 main 分支和拉取请求，也可手动运�
 版本由标签写入应用 Info.plist；不接受任意字符或预发布后缀。
 
 ```sh
-git tag -a v0.1.0 -m 'Agent Meter 0.1.0 preview'
+git tag -a v0.1.0 -m 'Agent Relay 0.1.0 preview'
 git push origin v0.1.0
 ```
 

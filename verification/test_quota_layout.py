@@ -7,7 +7,7 @@ import tempfile
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
-APP = ROOT / 'dist/Agent Meter Preview.app/Contents/MacOS/AgentMeterPreview'
+APP = ROOT / 'dist/Agent Relay.app/Contents/MacOS/AgentRelay'
 
 class QuotaLayoutTests(unittest.TestCase):
     def test_track_width_stays_constant_across_accounts_and_refresh_data(self):

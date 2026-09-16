@@ -36,7 +36,7 @@ jobs:
           GH_REPO: ${{ github.repository }}
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
-          file="dist/Agent-Meter-${RELEASE_TAG#v}-macos-arm64.dmg"
+          file="dist/Agent-Relay-${RELEASE_TAG#v}-macos-arm64.dmg"
           gh release create "$RELEASE_TAG" "$file" "$file.sha256" \
-            --verify-tag --prerelease --title "Agent Meter $RELEASE_TAG" \
+            --verify-tag --prerelease --title "Agent Relay $RELEASE_TAG" \
             --notes-file docs/release-notes.md
