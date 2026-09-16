@@ -6,7 +6,7 @@ signal(SIGPIPE, SIG_IGN)
 let application = NSApplication.shared
 if CommandLine.arguments.contains("--verify-quota-layout") {
     do {
-        let manager = ManagerController(store: try Store())
+        let manager = ManagerController(store: try Store(), persistWindowFrame: false)
         let widths = [680, 740, 1000].map { manager.quotaTrackWidths(at: NSSize(width: $0, height: 470)) }
         FileHandle.standardOutput.write(try JSONEncoder().encode(widths))
         exit(0)
@@ -29,7 +29,7 @@ if let index = CommandLine.arguments.firstIndex(of: "--render-design"), index + 
             try AppearanceController().render(to: url, dark: dark)
         } else if CommandLine.arguments.contains("--sessions") {
             try SessionsController(store: store).render(to: url, dark: dark, size: size)
-        } else { try ManagerController(store: store).render(to: url, dark: dark, size: size) }
+        } else { try ManagerController(store: store, persistWindowFrame: false).render(to: url, dark: dark, size: size) }
     } catch { fputs("\(error.localizedDescription)\n", stderr); exit(1) }
     exit(0)
 }

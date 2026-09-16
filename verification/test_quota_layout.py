@@ -11,6 +11,11 @@ APP = ROOT / 'dist/Agent Relay.app/Contents/MacOS/AgentRelay'
 
 class QuotaLayoutTests(unittest.TestCase):
     def test_track_width_stays_constant_across_accounts_and_refresh_data(self):
+        def saved_frame():
+            result = subprocess.run(['defaults', 'read', 'dev.local.agent-meter.preview',
+                                     'NSWindow Frame AgentRelay.Manager.Narrow'], capture_output=True)
+            return result.returncode, result.stdout
+        original_frame = saved_frame()
         with tempfile.TemporaryDirectory() as directory:
             def quota(used, minutes):
                 return dict(usedPercent=used, windowDurationMins=minutes, resetsAt=1800000000)
@@ -26,6 +31,7 @@ class QuotaLayoutTests(unittest.TestCase):
             for accounts in snapshots:
                 (Path(directory)/'accounts.json').write_text(json.dumps(dict(version=1,accounts=accounts,selectedID='0')))
                 proc = subprocess.run([str(APP),'--verify-quota-layout'],env=dict(os.environ,AGENT_METER_HOME=directory),text=True,capture_output=True,check=True,timeout=20)
+                self.assertEqual(saved_frame(), original_frame, 'Layout verification changed the real window preferences')
                 sizes=json.loads(proc.stdout)
                 for widths in sizes:
                     self.assertGreaterEqual(len(widths),2)

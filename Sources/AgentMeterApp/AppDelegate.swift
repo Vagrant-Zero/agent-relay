@@ -52,7 +52,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             NSApp.mainMenu = mainMenu
             let pidURL = store.root.appendingPathComponent("window.pid")
             try? Data(String(getpid()).utf8).write(to: pidURL, options: .atomic)
-            manager = ManagerController(store: store)
+            manager = ManagerController(store: store, persistWindowFrame: !lifecycleCheck)
             if !lifecycleCheck { manager?.show() }
             commandObserver = DistributedNotificationCenter.default().addObserver(forName: requestName, object: store.root.path, queue: .main) { [weak self] note in
                 self?.handleRequest(note.userInfo?["action"] as? String ?? "--manage")
