@@ -22,7 +22,8 @@ class SessionsTests(unittest.TestCase):
         with sqlite3.connect(self.b / 'state_5.sqlite') as db:
             db.execute('CREATE TABLE threads (id TEXT, title TEXT, cwd TEXT, updated_at INTEGER, rollout_path TEXT, source TEXT, history_mode TEXT, archived INTEGER)')
             db.execute('INSERT INTO threads VALUES (?, ?, ?, ?, ?, ?, ?, ?)', (self.sid, 'Original conversation', str(self.project), 9999999999, str(self.b/'rollout.jsonl'), 'cli', 'paginated', 0))
-        self.env = dict(os.environ, AGENT_METER_HOME=str(self.root/'meter'))
+        # Planning requires a valid executable path, but must not depend on a real Codex installation.
+        self.env = dict(os.environ, AGENT_METER_HOME=str(self.root/'meter'), AGENT_METER_CODEX='/usr/bin/false')
     def tearDown(self): self.tmp.cleanup()
     def run_cli(self, args, check=True):
         return subprocess.run([str(CLI), *args], env=self.env, cwd=self.project, text=True, capture_output=True, check=check)
