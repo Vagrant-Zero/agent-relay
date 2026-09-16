@@ -14,6 +14,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var ownsLock = false
     private var observer: NSObjectProtocol?
     private var launchingManager = false
+    private var quitting = false
+    private var quitTimer: Timer?
+    private let lifecycleCheck = CommandLine.arguments.contains("--verify-lifecycle")
     private var commandObserver: NSObjectProtocol?
     private let requestName = Notification.Name("dev.local.agent-meter.window-request")
     private let isManager = CommandLine.arguments.contains("--manage")
@@ -33,7 +36,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         ownsLock = true
         if isManager {
-            NSApp.setActivationPolicy(.regular)
+            NSApp.setActivationPolicy(lifecycleCheck ? .accessory : .regular)
             let mainMenu = NSMenu()
             let applicationItem = NSMenuItem(); mainMenu.addItem(applicationItem)
             let applicationMenu = NSMenu(); applicationItem.submenu = applicationMenu
@@ -50,7 +53,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             let pidURL = store.root.appendingPathComponent("window.pid")
             try? Data(String(getpid()).utf8).write(to: pidURL, options: .atomic)
             manager = ManagerController(store: store)
-            manager?.show()
+            if !lifecycleCheck { manager?.show() }
             commandObserver = DistributedNotificationCenter.default().addObserver(forName: requestName, object: store.root.path, queue: .main) { [weak self] note in
                 self?.handleRequest(note.userInfo?["action"] as? String ?? "--manage")
             }
@@ -63,13 +66,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         } else {
             NSApp.setActivationPolicy(.accessory)
             // Integration checks exercise the real scheduler without adding a fake menu icon.
-            if !CommandLine.arguments.contains("--verify-auto-refresh") {
+            if !CommandLine.arguments.contains("--verify-auto-refresh") && !lifecycleCheck {
                 let item = NSStatusBar.system.statusItem(withLength: 28)
                 item.button?.image = MeterAppearance.symbol()
                 item.button?.toolTip = "Agent Relay"
                 let menu = NSMenu(); menu.delegate = self; menu.autoenablesItems = false
                 item.menu = menu; self.item = item
                 populate(menu)
+            }
+            if lifecycleCheck {
+                let timer = Timer(timeInterval: 0.1, repeats: true) { [weak self] _ in
+                    guard let self, FileManager.default.fileExists(atPath: self.store.root.appendingPathComponent("test-quit").path) else { return }
+                    self.quit()
+                }
+                RunLoop.main.add(timer, forMode: .common)
+                quitTimer = timer
             }
             let timer = Timer(timeInterval: 5, repeats: true) { [weak self] _ in self?.refreshAutomatically() }
             timer.tolerance = 1
@@ -89,7 +100,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
     func applicationDidHide(_ notification: Notification) { manager?.hideAfterOperation() }
     func applicationDidBecomeActive(_ notification: Notification) {
-        if isManager && NSApp.windows.allSatisfy({ !$0.isVisible }) { manager?.show() }
+        if !lifecycleCheck && isManager && NSApp.windows.allSatisfy({ !$0.isVisible }) { manager?.show() }
     }
     private func smokeMenu(remaining: Int) {
         guard remaining > 0, let menu = item?.menu else {
@@ -106,14 +117,36 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if let observer { DistributedNotificationCenter.default().removeObserver(observer) }
         if let commandObserver { DistributedNotificationCenter.default().removeObserver(commandObserver) }
         refreshTimer?.invalidate()
+        quitTimer?.invalidate()
         worker?.terminate()
         if isManager && ownsLock { try? FileManager.default.removeItem(at: store.root.appendingPathComponent("window.pid")) }
         if instanceFD >= 0 { flock(instanceFD, LOCK_UN); Darwin.close(instanceFD) }
     }
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         if let manager, manager.isBusy { manager.close(); return .terminateCancel }
-        if worker?.isRunning == true { lastMessage = "操作正在进行，请完成后退出。"; return .terminateCancel }
-        return .terminateNow
+        // A rejected duplicate instance must never close the real manager.
+        guard !isManager, ownsLock else { return .terminateNow }
+        if quitting { return .terminateLater }
+        quitting = true
+        refreshTimer?.invalidate()
+        lastMessage = "正在退出…"
+        quitTimer?.invalidate()
+        let timer = Timer(timeInterval: 0.1, repeats: true) { [weak self] _ in self?.finishQuit() }
+        quitTimer = timer
+        RunLoop.main.add(timer, forMode: .common)
+        return .terminateLater
+    }
+    private func finishQuit() {
+        guard quitting else { return }
+        if let app = runningManager() {
+            // Normal AppKit termination also closes sheets and auxiliary windows.
+            // The manager's delegate cancels and drains an active operation first.
+            app.terminate()
+            return
+        }
+        guard !launchingManager, worker == nil else { return }
+        quitTimer?.invalidate(); quitTimer = nil
+        NSApp.reply(toApplicationShouldTerminate: true)
     }
     func menuNeedsUpdate(_ menu: NSMenu) { populate(menu) }
     private func add(_ menu: NSMenu, _ title: String, action: Selector? = nil, value: String? = nil, enabled: Bool = true) {
@@ -211,6 +244,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         return true
     }
     private func handleRequest(_ action: String) {
+        guard !lifecycleCheck else { return }
         switch action {
         case "--sessions": manager?.showSessions()
         case "--appearance": manager?.showAppearance()
@@ -223,6 +257,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc func openSessions() { launchManager(action: "--sessions") }
     @objc func openAppearance() { launchManager(action: "--appearance") }
     private func launchManager(action: String) {
+        guard !quitting else { return }
         if let app = runningManager() {
             NSApp.yieldActivation(to: app)
             DistributedNotificationCenter.default().postNotificationName(requestName, object: store.root.path, userInfo: ["action": action], deliverImmediately: true)
@@ -242,6 +277,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 guard let self else { return }
                 self.launchingManager = false
                 if let app {
+                    if self.quitting { app.terminate(); return }
                     NSApp.yieldActivation(to: app)
                     app.activate(from: .current, options: [.activateAllWindows])
                 } else { self.lastMessage = "管理窗口启动失败：\(error?.localizedDescription ?? "未知错误")" }
@@ -253,7 +289,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc func switchAccount(_ sender: NSMenuItem) { if let id = sender.representedObject as? String { runWorker(["switch", id]) } }
     @objc func quit() { NSApp.terminate(nil) }
     private func refreshAutomatically() {
-        guard !isManager, worker == nil,
+        guard !isManager, !quitting, worker == nil,
               let registry = try? store.read(),
               let id = refreshSchedule.next(in: registry) else { return }
         // Respect login/switch/refresh operations in the other process.
@@ -262,7 +298,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         runWorker(["quota", id], automatic: true)
     }
     private func runWorker(_ arguments: [String], automatic: Bool = false) {
-        guard worker == nil else { return }
+        guard !quitting, worker == nil else { return }
         let process = Process()
         process.executableURL = Bundle.main.executableURL?.deletingLastPathComponent().appendingPathComponent("agent-relay")
         process.arguments = arguments + ["--json"]

@@ -7,7 +7,7 @@
 <key>CFBundleExecutable</key><string>AgentRelay</string>
 <key>CFBundleIconFile</key><string>AppIcon</string>
 <key>CFBundlePackageType</key><string>APPL</string>
-<key>CFBundleShortVersionString</key><string>0.2.3</string>
+<key>CFBundleShortVersionString</key><string>0.2.4</string>
 <key>CFBundleVersion</key><string>1</string>
 <key>LSMinimumSystemVersion</key><string>26.0</string>
 <key>LSUIElement</key><true/>

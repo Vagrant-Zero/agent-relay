@@ -13,7 +13,7 @@ interrupt.setEventHandler { cancellation.cancel() }; interrupt.resume()
 termination.setEventHandler { cancellation.cancel() }; termination.resume()
 
 let help = """
-Agent Relay 0.2.3
+Agent Relay 0.2.4
 
   agent-relay accounts [--json]                 列出账号与缓存额度
   agent-relay login <别名> [--no-open]           在官方网页添加账号
@@ -128,7 +128,7 @@ func resumeArguments(_ original: [String], store: Store, profile: String, additi
 }
 do {
     if ["help", "--help", "-h"].contains(command) { print(help); exit(0) }
-    if ["--version", "version"].contains(command) { print("0.2.3"); exit(0) }
+    if ["--version", "version"].contains(command) { print("0.2.4"); exit(0) }
     let store = try Store()
     let service = AccountService(store: store, cancellation: cancellation)
     switch command {
@@ -243,7 +243,7 @@ do {
         let executable = try? CodexEnvironment.executable()
         let application = try? DesktopController.application()
         let version = application.flatMap { Bundle(url: $0)?.infoDictionary?["CFBundleShortVersionString"] as? String }
-        let result = ["version": "0.2.3", "codex": executable?.path ?? "未安装", "desktop": application?.path ?? "未安装", "desktopVersion": version ?? "未知", "desktopSupported": version == "26.908.40834" ? "yes" : "no", "dataDirectory": store.root.path, "desktopAdapter": (try? DesktopController.bridgeExecutable().path) ?? "缺失"]
+        let result = ["version": "0.2.4", "codex": executable?.path ?? "未安装", "desktop": application?.path ?? "未安装", "desktopVersion": version ?? "未知", "desktopSupported": version == "26.908.40834" ? "yes" : "no", "dataDirectory": store.root.path, "desktopAdapter": (try? DesktopController.bridgeExecutable().path) ?? "缺失"]
         if json { try output(result) } else { for key in result.keys.sorted() { print("\(key): \(result[key]!)") } }
     default: throw MeterError.message("未知命令：\(command)。使用 agent-relay --help 查看用法。")
     }
