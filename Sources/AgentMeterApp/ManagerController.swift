@@ -45,7 +45,7 @@ final class ManagerController: NSObject, NSWindowDelegate {
 
     init(store: Store) {
         self.store = store
-        window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 740, height: 470),
+        window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 700, height: 400),
                           styleMask: [.titled, .closable, .resizable, .fullSizeContentView], backing: .buffered, defer: false)
         super.init()
         window.title = "Agent Relay"
@@ -53,7 +53,7 @@ final class ManagerController: NSObject, NSWindowDelegate {
         window.isReleasedWhenClosed = false
         window.minSize = NSSize(width: 680, height: 380)
         window.delegate = self
-        window.setFrameAutosaveName("AgentMeterPreview.Manager")
+        window.setFrameAutosaveName("AgentRelay.Manager.Compact")
         build()
         reload()
     }
@@ -366,8 +366,8 @@ private final class AccountRowView: NSView {
     override func draw(_ dirtyRect: NSRect) {
         guard selected else { return }
         let shape = NSBezierPath(roundedRect: bounds.insetBy(dx: 0.5, dy: 5), xRadius: 8, yRadius: 8)
-        NSColor.labelColor.withAlphaComponent(0.08).setFill(); shape.fill()
-        NSColor.labelColor.withAlphaComponent(0.20).setStroke()
+        NSColor.labelColor.withAlphaComponent(0.035).setFill(); shape.fill()
+        NSColor.labelColor.withAlphaComponent(0.08).setStroke()
         shape.lineWidth = 1; shape.stroke()
     }
     override func viewDidChangeEffectiveAppearance() {
