@@ -7,3 +7,5 @@ macOS 26 及以上 · Apple Silicon（M 系列）· 未公证预览版。
 支持账号与额度管理、菜单栏快捷切换、跨账号恢复本地会话、原生玻璃背景与透明度设置。需要另外安装官方 Codex CLI；桌面切换仅支持 README 中列出的官方桌面版本。
 
 数据保存在本机。升级时覆盖应用即可，账号和会话数据不会因替换应用包而删除。
+
+本次更新：提供可选 zsh 接入。首次 source 应用内 `Contents/Resources/codex.zsh` 后，普通 `codex` / `codex resume` 每次读取软件当前账号；无需重开终端，旧会话仍可跨账号恢复。配置步骤见 README。

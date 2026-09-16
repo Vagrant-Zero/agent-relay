@@ -13,6 +13,7 @@ staging_dir="$(mktemp -d "$PWD/dist/.agent-meter-build.XXXXXX")"
 trap 'rm -rf "$staging_dir"' EXIT
 app_dir="$staging_dir/Agent Meter Preview.app"
 mkdir -p "$app_dir/Contents/MacOS" "$app_dir/Contents/Resources"
+cp scripts/codex-resume.zsh "$app_dir/Contents/Resources/codex.zsh"
 cp Resources/Info.plist "$app_dir/Contents/Info.plist"
 /usr/libexec/PlistBuddy -c "Set CFBundleShortVersionString $release_version" "$app_dir/Contents/Info.plist"
 /usr/libexec/PlistBuddy -c "Set CFBundleVersion $release_version" "$app_dir/Contents/Info.plist"

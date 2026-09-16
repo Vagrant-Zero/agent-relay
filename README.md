@@ -45,10 +45,10 @@
 
 | 操作 | 行为 |
 |---|---|
-| 仅切换 CLI | 更改通过 `agent-meter run` 启动的新会话所用的默认账号 |
+| 仅切换 CLI | 更改新启动的 Codex 进程所用账号；启用下方 shell 接入后，直接使用 `codex` / `codex resume` 即可 |
 | 切换桌面与 CLI | 正常退出并重启受支持的官方桌面端，验证身份后更新 CLI 默认账号 |
 
-已经运行的 CLI 会话继续使用原账号。普通 `codex` 命令不会自动被本软件改写；从 Dock/Finder 直接启动的官方应用也不由本软件接管账号选择。
+已经运行的 CLI 会话继续使用原账号。启用下方 shell 接入后，普通 `codex` 命令会读取软件当前选择；未启用时保持官方原有行为。从 Dock/Finder 直接启动的官方应用也不由本软件接管账号选择。
 
 ### 换账号后恢复对话
 
@@ -66,6 +66,28 @@
 菜单栏 → **外观…**，或点击管理窗口右上角的调节图标。
 
 背景透明度支持 **0% 实色 → 100% 全透明**，实时生效并自动保存。文字和按钮不随背景变淡，标题栏保留底色。系统开启“减少透明度”时，应用遵循系统设置使用实色背景。
+
+## 直接使用 codex / codex resume
+
+如果希望在软件里切换账号后，终端直接运行 `codex resume` 就使用新账号，在 `~/.zshrc` **末尾**加入：
+
+```sh
+source "/Applications/Agent Meter Preview.app/Contents/Resources/codex.zsh"
+```
+
+若安装在用户目录，将路径改为 `$HOME/Applications/Agent Meter Preview.app/Contents/Resources/codex.zsh`。源码开发也可以直接 source `scripts/codex-resume.zsh`。
+
+首次接入后执行一次 `source ~/.zshrc`，或新开终端。以后在软件中切换账号，已打开的终端也会在下一次运行 `codex` 时读取最新选择，无需再次 source：
+
+```sh
+codex
+codex resume
+codex resume <会话ID>
+```
+
+认证使用当前所选账号，恢复会话时仍查找原历史目录。已经运行的 Codex 进程不会被中途换号；先退出该进程，再执行 `codex resume`。
+
+接入只定义 zsh 函数，不替换官方可执行文件、不复制认证文件；`command codex` 可以绕过接入。旧 `cxa` / `cxb` 快捷指令仍可显式使用原 a/b 目录，但普通 `codex` 统一跟随软件中的选择。
 
 ## CLI
 

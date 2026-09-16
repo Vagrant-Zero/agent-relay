@@ -4,6 +4,7 @@ import json
 import os
 from pathlib import Path
 import signal
+import sqlite3
 import subprocess
 import tempfile
 import unittest
@@ -54,6 +55,23 @@ class CLITests(unittest.TestCase):
     def add(self, alias):
         profile=self.root/alias;profile.mkdir();(profile/'marker').write_text('do-not-change')
         return self.call('import',alias,'--profile',str(profile),'--json')
+    def test_plain_codex_resume_follows_selection_in_same_shell(self):
+        a=self.add('a');self.add('b')
+        sid='99999999-0000-4000-8000-000000000001'
+        with sqlite3.connect(self.root/'a'/'state_5.sqlite') as db:
+            db.execute('CREATE TABLE threads (id TEXT, title TEXT, cwd TEXT, updated_at INTEGER, rollout_path TEXT, source TEXT, history_mode TEXT, archived INTEGER)')
+            db.execute('INSERT INTO threads VALUES (?, ?, ?, ?, ?, ?, ?, ?)', (sid, 'History', str(self.root), 9999999999, '', 'cli', 'paginated', 0))
+        env=dict(self.env, AGENT_METER_CLI=str(CLI), METER_HOOK=str(ROOT/'scripts/codex-resume.zsh'), TEST_SESSION=sid, CODEX_PROFILE='old-shell-value')
+        script='source "$METER_HOOK"; codex resume "$TEST_SESSION"; "$AGENT_METER_CLI" switch b --cli-only >/dev/null; codex resume "$TEST_SESSION"'
+        proc=subprocess.run(['/bin/zsh','-f','-c',script],env=env,capture_output=True,text=True,timeout=15)
+        self.assertEqual(proc.returncode,0,proc.stdout+proc.stderr)
+        results=[json.loads(line) for line in proc.stdout.splitlines()]
+        self.assertEqual([r['profile'] for r in results],['a','b'])
+        for result in results:
+            self.assertEqual(result['args'][2:],['resume',sid])
+            self.assertIn(str(self.root/'a'),result['args'][1])
+            self.assertFalse(result['key_override'])
+
     def test_switch_and_run_are_isolated(self):
         self.add('a');self.add('b')
         self.call('switch','b','--cli-only','--json')
