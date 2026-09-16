@@ -206,10 +206,10 @@ final class ManagerController: NSObject, NSWindowDelegate {
         findCancel(in: window.contentView)?.isHidden = !isBusy
     }
     private func accountCard(_ account: Account, registry: Registry) -> NSView {
-        let card = NSView()
         let selected = registry.selectedID == account.id
+        let card = AccountRowView(selected: selected)
         let desktop = registry.desktop.map { $0.accountID == account.id && DesktopController.isVerified($0) } ?? false
-        let name = stack([label(account.alias, size: 14, weight: .medium), label(selected ? "CLI" : "", size: 10, color: .secondaryLabelColor)], spacing: 6)
+        let name = stack([label(account.alias, size: 14, weight: .medium), label(selected ? "✓ 当前账号" : "", size: 10, color: .labelColor)], spacing: 6)
         let identity = stack([name, label(account.email, size: 11, color: .secondaryLabelColor),
                               label("\(account.plan.capitalized) · 重置卡 \(account.quota?.resetCards.map(String.init) ?? "—")\(account.quota?.isStale == true ? " · 缓存" : "")", size: 10, color: .secondaryLabelColor)], vertical: true, spacing: 5)
         identity.widthAnchor.constraint(equalToConstant: 174).isActive = true
@@ -257,7 +257,7 @@ final class ManagerController: NSObject, NSWindowDelegate {
         card.addSubview(body); body.translatesAutoresizingMaskIntoConstraints = false
         let line = MeterAppearance.divider(); card.addSubview(line); line.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
-            body.topAnchor.constraint(equalTo: card.topAnchor, constant: 20), body.leadingAnchor.constraint(equalTo: card.leadingAnchor), body.trailingAnchor.constraint(equalTo: card.trailingAnchor),
+            body.topAnchor.constraint(equalTo: card.topAnchor, constant: 20), body.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: 12), body.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -12),
             line.topAnchor.constraint(equalTo: body.bottomAnchor, constant: 20), line.leadingAnchor.constraint(equalTo: card.leadingAnchor), line.trailingAnchor.constraint(equalTo: card.trailingAnchor), line.bottomAnchor.constraint(equalTo: card.bottomAnchor),
             row.widthAnchor.constraint(equalTo: body.widthAnchor)
         ])
@@ -356,4 +356,22 @@ final class ManagerController: NSObject, NSWindowDelegate {
         return true
     }
     func windowWillClose(_ notification: Notification) { NSApp.terminate(nil) }
+}
+
+/// Selection is independent of glass opacity and stays visible in both appearances.
+private final class AccountRowView: NSView {
+    private let selected: Bool
+    init(selected: Bool) { self.selected = selected; super.init(frame: .zero) }
+    required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
+    override func draw(_ dirtyRect: NSRect) {
+        guard selected else { return }
+        let shape = NSBezierPath(roundedRect: bounds.insetBy(dx: 0.5, dy: 5), xRadius: 8, yRadius: 8)
+        NSColor.labelColor.withAlphaComponent(0.08).setFill(); shape.fill()
+        NSColor.labelColor.withAlphaComponent(0.20).setStroke()
+        shape.lineWidth = 1; shape.stroke()
+    }
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        needsDisplay = true
+    }
 }

@@ -26,7 +26,7 @@ public final class RPCClient {
         let fd = output.fileHandleForReading.fileDescriptor
         _ = fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) | O_NONBLOCK)
         do {
-            _ = try request("initialize", params: ["clientInfo": ["name": "agent_meter", "title": "Agent Relay", "version": "0.2.0"]])
+            _ = try request("initialize", params: ["clientInfo": ["name": "agent_meter", "title": "Agent Relay", "version": "0.2.1"]])
             try send(["method": "initialized"])
         } catch { stop(); throw error }
     }

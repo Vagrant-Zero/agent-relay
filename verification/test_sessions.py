@@ -53,6 +53,19 @@ class SessionsTests(unittest.TestCase):
         self.assertEqual(result['profile'],str(self.a))
         self.assertEqual(result['args'][2:],['resume',self.sid,'a prompt'])
         self.assertIsNone(result['api'])
+    def test_checkpointed_wal_without_sidecars(self):
+        dbpath = self.b/'state_5.sqlite'
+        with sqlite3.connect(dbpath) as db:
+            self.assertEqual(db.execute('PRAGMA journal_mode=WAL').fetchone()[0], 'wal')
+        db.close()
+        self.assertFalse(Path(str(dbpath)+'-wal').exists())
+        self.assertFalse(Path(str(dbpath)+'-shm').exists())
+        before = dbpath.read_bytes()
+        for _ in range(2):
+            result = self.plan(self.sid, '--yolo')
+            self.assertEqual(result['arguments'][2:], ['resume', self.sid, '--yolo'])
+            self.assertEqual(dbpath.read_bytes(), before)
+
     def test_read_only_catalog(self):
         before=(self.b/'state_5.sqlite').read_bytes()
         result=json.loads(self.run_cli(['sessions','--source',str(self.b),'--json']).stdout)

@@ -75,7 +75,26 @@ public enum LocalSessions {
             sqlite3_busy_timeout(db, 3000)
             var stmt: OpaquePointer?
             let sql = "SELECT id, title, cwd, updated_at, rollout_path, source, history_mode FROM threads WHERE archived = 0 ORDER BY updated_at DESC"
-            guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else {
+            var prepared = sqlite3_prepare_v2(db, sql, -1, &stmt, nil)
+            if prepared == SQLITE_CANTOPEN {
+                // A checkpointed WAL database may have no -wal/-shm files. Some
+                // SQLite builds cannot initialize those through a read-only handle.
+                // Permit SQLite's coordination files, but prohibit SQL writes. Never
+                // use immutable=1: another Codex process may be writing concurrently.
+                sqlite3_finalize(stmt); stmt = nil
+                sqlite3_close(db); db = nil
+                guard sqlite3_open_v2(path, &db, SQLITE_OPEN_READWRITE | SQLITE_OPEN_FULLMUTEX, nil) == SQLITE_OK else {
+                    let reason = db.map { String(cString: sqlite3_errmsg($0)) } ?? "无法打开数据库"
+                    throw MeterError.message("无法读取会话索引：\(path)（\(reason)）")
+                }
+                sqlite3_busy_timeout(db, 3000)
+                guard sqlite3_exec(db, "PRAGMA query_only=ON", nil, nil, nil) == SQLITE_OK else {
+                    throw MeterError.message("无法启用会话索引只读查询：\(path)")
+                }
+                prepared = sqlite3_prepare_v2(db, sql, -1, &stmt, nil)
+            }
+            guard prepared == SQLITE_OK else {
+                sqlite3_finalize(stmt)
                 throw MeterError.message("无法读取会话索引：\(path)（\(String(cString: sqlite3_errmsg(db)))）")
             }
             defer { sqlite3_finalize(stmt) }

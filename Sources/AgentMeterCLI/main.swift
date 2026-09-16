@@ -13,7 +13,7 @@ interrupt.setEventHandler { cancellation.cancel() }; interrupt.resume()
 termination.setEventHandler { cancellation.cancel() }; termination.resume()
 
 let help = """
-Agent Relay 0.2.0
+Agent Relay 0.2.1
 
   agent-relay accounts [--json]                 列出账号与缓存额度
   agent-relay login <别名> [--no-open]           在官方网页添加账号
@@ -99,6 +99,9 @@ func resumeArguments(_ original: [String], store: Store, profile: String, additi
     if let position = positional, !last {
         let key = forwarded.remove(at: position)
         let matches = sessions.filter { $0.id == key || $0.title == key }
+        if matches.isEmpty && !scan.failedRoots.isEmpty {
+            throw MeterError.message("部分会话索引暂时不可读，无法确认会话是否存在：\(key)。请稍后重试。")
+        }
         guard matches.count == 1, let session = matches.first else { throw MeterError.message("会话不存在或名称不唯一：\(key)。使用 agent-relay sessions 查看 ID。") }
         chosen = session
     } else {
@@ -125,7 +128,7 @@ func resumeArguments(_ original: [String], store: Store, profile: String, additi
 }
 do {
     if ["help", "--help", "-h"].contains(command) { print(help); exit(0) }
-    if ["--version", "version"].contains(command) { print("0.2.0"); exit(0) }
+    if ["--version", "version"].contains(command) { print("0.2.1"); exit(0) }
     let store = try Store()
     let service = AccountService(store: store, cancellation: cancellation)
     switch command {
@@ -240,7 +243,7 @@ do {
         let executable = try? CodexEnvironment.executable()
         let application = try? DesktopController.application()
         let version = application.flatMap { Bundle(url: $0)?.infoDictionary?["CFBundleShortVersionString"] as? String }
-        let result = ["version": "0.2.0", "codex": executable?.path ?? "未安装", "desktop": application?.path ?? "未安装", "desktopVersion": version ?? "未知", "desktopSupported": version == "26.908.40834" ? "yes" : "no", "dataDirectory": store.root.path, "desktopAdapter": (try? DesktopController.bridgeExecutable().path) ?? "缺失"]
+        let result = ["version": "0.2.1", "codex": executable?.path ?? "未安装", "desktop": application?.path ?? "未安装", "desktopVersion": version ?? "未知", "desktopSupported": version == "26.908.40834" ? "yes" : "no", "dataDirectory": store.root.path, "desktopAdapter": (try? DesktopController.bridgeExecutable().path) ?? "缺失"]
         if json { try output(result) } else { for key in result.keys.sorted() { print("\(key): \(result[key]!)") } }
     default: throw MeterError.message("未知命令：\(command)。使用 agent-relay --help 查看用法。")
     }
