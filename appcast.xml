@@ -3,10 +3,10 @@
   <channel>
     <title>Agent Relay Updates</title>
     <item>
-      <title>Agent Relay 0.3.2</title>
-      <pubDate>Fri, 18 Sep 2026 18:37:42 +0000</pubDate>
+      <title>Agent Relay 0.3.3</title>
+      <pubDate>Fri, 18 Sep 2026 18:42:41 +0000</pubDate>
       <sparkle:minimumSystemVersion>26.0</sparkle:minimumSystemVersion>
-      <enclosure url="https://github.com/Vagrant-Zero/agent-relay/releases/download/v0.3.2/Agent-Relay-0.3.2-macos-arm64.dmg" length="1867413" type="application/octet-stream" sparkle:version="0.3.2" sparkle:shortVersionString="0.3.2" sparkle:edSignature="qPSQq++oDoRGBoF7YRdtchgbTMNmXFd83mtLM8ONJyOL+95YM3skWcUQTGtyfddhHM5xifqWJ2LYXxQbDcqVBQ==" />
+      <enclosure url="https://github.com/Vagrant-Zero/agent-relay/releases/download/v0.3.3/Agent-Relay-0.3.3-macos-arm64.dmg" length="1872166" type="application/octet-stream" sparkle:version="0.3.3" sparkle:shortVersionString="0.3.3" sparkle:edSignature="ravfvCNVvPfE0hPqXyEFU2oXcDg9NqOH9D3+6U5IEh1LPcc98CTzXjW2e5tNreaQibcAoKFdvpODkF77lNC0Cg==" />
     </item>
   </channel>
 </rss>
