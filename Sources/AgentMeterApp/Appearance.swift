@@ -76,22 +76,30 @@ final class SurfaceView: NSView {
     }
 }
 
+private final class SettingsDocumentView: NSView { override var isFlipped: Bool { true } }
+
 final class SettingsController: NSObject, NSWindowDelegate {
     var onClose: (() -> Void)?
-    private let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 430, height: 456), styleMask: [.titled, .closable, .fullSizeContentView], backing: .buffered, defer: false)
+    private var window: NSWindow?
     private let value = NSTextField(labelWithString: "")
     private let slider = NSSlider(value: GlassPreferences.transparency, minValue: 0, maxValue: 100, target: nil, action: nil)
     private let showQuota = NSButton(checkboxWithTitle: "菜单栏显示剩余额度", target: nil, action: nil)
     private let period = NSPopUpButton()
     private let automatic = NSButton(checkboxWithTitle: "自动检查更新（每天）", target: nil, action: nil)
     private let checkUpdates: () -> Void
-    init(checkUpdates: @escaping () -> Void = {}) {
+    init(contentHost: NSView? = nil, checkUpdates: @escaping () -> Void = {}) {
         self.checkUpdates = checkUpdates
         super.init()
-        window.delegate = self
-        window.title = "设置"; window.isReleasedWhenClosed = false
-        window.titlebarAppearsTransparent = true; window.isOpaque = false; window.backgroundColor = .clear
-        let surface = SurfaceView(); window.contentView = surface
+        let host: NSView
+        if let contentHost { host = contentHost }
+        else {
+            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 430, height: 456), styleMask: [.titled, .closable, .fullSizeContentView], backing: .buffered, defer: false)
+            self.window = window
+            window.delegate = self
+            window.title = "设置"; window.isReleasedWhenClosed = false
+            window.titlebarAppearsTransparent = true; window.isOpaque = false; window.backgroundColor = .clear
+            let surface = SurfaceView(); window.contentView = surface; host = surface.contentHost
+        }
         func text(_ title: String, size: CGFloat = 12, secondary: Bool = false) -> NSTextField {
             let label = NSTextField(wrappingLabelWithString: title)
             label.font = .systemFont(ofSize: size, weight: size == 14 ? .medium : .regular)
@@ -121,8 +129,19 @@ final class SettingsController: NSObject, NSWindowDelegate {
             row([text("当前版本  \(version)", secondary: true), versionSpace, update]), automatic,
             text("发现新版本后提示，下载和安装由你确认。", secondary: true)]
         let stack = NSStackView(views: views); stack.orientation = .vertical; stack.spacing = 12; stack.alignment = .leading
-        surface.contentHost.addSubview(stack); stack.translatesAutoresizingMaskIntoConstraints = false
-        NSLayoutConstraint.activate([stack.leadingAnchor.constraint(equalTo: surface.leadingAnchor, constant: 24), stack.trailingAnchor.constraint(equalTo: surface.trailingAnchor, constant: -24), stack.topAnchor.constraint(equalTo: surface.topAnchor, constant: 52), stack.bottomAnchor.constraint(lessThanOrEqualTo: surface.bottomAnchor, constant: -20)])
+        let scroll = NSScrollView(); scroll.drawsBackground = false
+        scroll.hasVerticalScroller = true; scroll.scrollerStyle = .overlay
+        let document = SettingsDocumentView(); scroll.documentView = document
+        host.addSubview(scroll); scroll.translatesAutoresizingMaskIntoConstraints = false
+        document.translatesAutoresizingMaskIntoConstraints = false
+        document.addSubview(stack); stack.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            scroll.leadingAnchor.constraint(equalTo: host.leadingAnchor), scroll.trailingAnchor.constraint(equalTo: host.trailingAnchor),
+            scroll.topAnchor.constraint(equalTo: host.topAnchor, constant: contentHost == nil ? 52 : 76), scroll.bottomAnchor.constraint(equalTo: host.bottomAnchor, constant: -16),
+            document.widthAnchor.constraint(equalTo: scroll.contentView.widthAnchor),
+            stack.leadingAnchor.constraint(equalTo: document.leadingAnchor, constant: 24), stack.trailingAnchor.constraint(equalTo: document.trailingAnchor, constant: -24),
+            stack.topAnchor.constraint(equalTo: document.topAnchor), stack.bottomAnchor.constraint(equalTo: document.bottomAnchor, constant: -8)
+        ])
         for child in views { child.widthAnchor.constraint(equalTo: stack.widthAnchor).isActive = true }
         synchronize()
     }
@@ -135,13 +154,13 @@ final class SettingsController: NSObject, NSWindowDelegate {
         period.isEnabled = GlassPreferences.showMenuQuota
         automatic.state = GlassPreferences.automaticUpdates ? .on : .off
     }
-    func render(to url: URL, dark: Bool) throws { try MeterAppearance.render(window: window, to: url, dark: dark, size: NSSize(width: 430, height: 456)) }
+    func render(to url: URL, dark: Bool) throws { guard let window else { return }; try MeterAppearance.render(window: window, to: url, dark: dark, size: NSSize(width: 430, height: 456)) }
     @objc private func change() { GlassPreferences.transparency = slider.doubleValue; value.stringValue = "\(Int(slider.doubleValue.rounded()))%" }
     @objc private func changeQuota() { GlassPreferences.showMenuQuota = showQuota.state == .on; synchronize() }
     @objc private func changePeriod() { GlassPreferences.menuQuotaPeriod = ["fiveHours", "weekly", "both"][period.indexOfSelectedItem] }
     @objc private func changeAutomatic() { GlassPreferences.automaticUpdates = automatic.state == .on }
     @objc private func check() { checkUpdates() }
-    func show() { synchronize(); window.center(); window.makeKeyAndOrderFront(nil); NSApp.activate() }
+    func show() { synchronize(); window?.center(); window?.makeKeyAndOrderFront(nil); NSApp.activate() }
 }
 
 enum MeterAppearance {

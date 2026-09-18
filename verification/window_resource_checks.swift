@@ -43,3 +43,16 @@ autoreleasepool {
 precondition(weakSettings == nil, "Settings controller retained after event pool drains")
 precondition(weakSessions == nil, "Sessions controller retained after event pool drains")
 print("60 unchanged refreshes reuse rows; changed quota redraws; closed controllers released")
+
+let originalSurface = main.contentView!
+let originalWindowCount = app.windows.count
+for _ in 0..<10 {
+    manager.showAppearance(activate: false)
+    precondition(app.windows.count == originalWindowCount, "Settings must reuse the manager window")
+    precondition(main.contentView === originalSurface, "Settings must reuse the glass background")
+    let back = descendants(main.contentView!).compactMap { $0 as? ActionButton }.first { $0.title == "返回账号" }!
+    back.invoke?()
+    precondition(main.contentView === originalSurface)
+    precondition(card().superview != nil, "Returning must restore account rows")
+}
+print("10 settings/manager round trips reuse one window and glass background")

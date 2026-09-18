@@ -49,15 +49,35 @@ final class ManagerController: NSObject, NSWindowDelegate {
         }
         sessionsController?.show()
     }
-    func showAppearance() {
+    func showAppearance(activate: Bool = true) {
+        guard !isBusy, let background = window.contentView as? SurfaceView else { return }
         if appearanceController == nil {
-            appearanceController = SettingsController { [weak self] in
+            clearFeedback?.cancel(); clearFeedback = nil; feedback.stringValue = ""
+            rows.arrangedSubviews.forEach { rows.removeArrangedSubview($0); $0.removeFromSuperview() }
+            rows.removeFromSuperview(); controls.removeAll(); renderedState = nil
+            background.contentHost.subviews.forEach { $0.removeFromSuperview() }
+            appearanceController = SettingsController(contentHost: background.contentHost) { [weak self] in
                 guard let self else { return }
                 DistributedNotificationCenter.default().postNotificationName(.init("dev.local.agent-meter.window-request"), object: self.store.root.path, userInfo: ["action": "--check-updates"], deliverImmediately: true)
             }
-            appearanceController?.onClose = { [weak self] in self?.appearanceController = nil }
+            let back = ActionButton("返回账号") { [weak self] in self?.showAccounts() }
+            back.image = NSImage(systemSymbolName: "chevron.left", accessibilityDescription: nil)
+            back.isBordered = false
+            let title = label("设置", size: 18, weight: .medium)
+            let header = stack([back, spacer(), title], spacing: 12)
+            background.contentHost.addSubview(header); header.translatesAutoresizingMaskIntoConstraints = false
+            NSLayoutConstraint.activate([
+                header.leadingAnchor.constraint(equalTo: background.leadingAnchor, constant: 24),
+                header.trailingAnchor.constraint(equalTo: background.trailingAnchor, constant: -24),
+                header.topAnchor.constraint(equalTo: background.topAnchor, constant: 38)
+            ])
         }
-        appearanceController?.show()
+        if activate { appearanceController?.show(); window.makeKeyAndOrderFront(nil) }
+    }
+    private func showAccounts() {
+        guard appearanceController != nil else { return }
+        appearanceController = nil
+        build(); reload()
     }
     private(set) var isBusy = false
 
@@ -76,6 +96,7 @@ final class ManagerController: NSObject, NSWindowDelegate {
         reload()
     }
     func show() {
+        showAccounts()
         shouldClose = false
         NSApp.unhide(nil)
         if window.isMiniaturized { window.deminiaturize(nil) }
@@ -129,7 +150,8 @@ final class ManagerController: NSObject, NSWindowDelegate {
         return view
     }
     private func build() {
-        let background = SurfaceView()
+        let background = window.contentView as? SurfaceView ?? SurfaceView()
+        background.contentHost.subviews.forEach { $0.removeFromSuperview() }
         window.isOpaque = false; window.backgroundColor = .clear
         window.contentView = background
         let content = NSView(); background.contentHost.addSubview(content)
@@ -191,6 +213,7 @@ final class ManagerController: NSObject, NSWindowDelegate {
         cancel.isHidden = true
     }
     func reload() {
+        guard appearanceController == nil else { return }
         let registry: Registry
         do { registry = try store.read() }
         catch { feedback.stringValue = "账号文件无法读取：\(error.localizedDescription)"; return }

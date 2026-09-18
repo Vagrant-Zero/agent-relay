@@ -26,7 +26,9 @@ if let index = CommandLine.arguments.firstIndex(of: "--render-design"), index + 
         let dark = CommandLine.arguments.contains("--dark")
         let size = NSSize(width: CommandLine.arguments.contains("--compact") ? 680 : 740, height: CommandLine.arguments.contains("--sessions") ? 560 : 470)
         if CommandLine.arguments.contains("--appearance") {
-            try SettingsController().render(to: url, dark: dark)
+            let manager = ManagerController(store: store, persistWindowFrame: false)
+            manager.showAppearance(activate: false)
+            try manager.render(to: url, dark: dark, size: size)
         } else if CommandLine.arguments.contains("--sessions") {
             try SessionsController(store: store).render(to: url, dark: dark, size: size)
         } else { try ManagerController(store: store, persistWindowFrame: false).render(to: url, dark: dark, size: size) }
