@@ -50,7 +50,8 @@ final class SurfaceView: NSView {
         glass.contentView = NSView()
         effect = glass
         super.init(frame: frame)
-        wantsLayer = true; layer?.cornerRadius = 12; layer?.masksToBounds = true
+        // NSGlassEffectView owns its backing layers; the foreground stays AppKit-drawn.
+        // Layer-backing the parent would allocate backing stores for every descendant.
         addSubview(effect)
         effect.frame = bounds; effect.autoresizingMask = [.width, .height]
         // Foreground is a sibling: fading the glass must never fade labels or controls.
@@ -75,7 +76,8 @@ final class SurfaceView: NSView {
     }
 }
 
-final class SettingsController {
+final class SettingsController: NSObject, NSWindowDelegate {
+    var onClose: (() -> Void)?
     private let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 430, height: 456), styleMask: [.titled, .closable, .fullSizeContentView], backing: .buffered, defer: false)
     private let value = NSTextField(labelWithString: "")
     private let slider = NSSlider(value: GlassPreferences.transparency, minValue: 0, maxValue: 100, target: nil, action: nil)
@@ -85,6 +87,8 @@ final class SettingsController {
     private let checkUpdates: () -> Void
     init(checkUpdates: @escaping () -> Void = {}) {
         self.checkUpdates = checkUpdates
+        super.init()
+        window.delegate = self
         window.title = "设置"; window.isReleasedWhenClosed = false
         window.titlebarAppearsTransparent = true; window.isOpaque = false; window.backgroundColor = .clear
         let surface = SurfaceView(); window.contentView = surface
@@ -122,6 +126,7 @@ final class SettingsController {
         for child in views { child.widthAnchor.constraint(equalTo: stack.widthAnchor).isActive = true }
         synchronize()
     }
+    func windowWillClose(_ notification: Notification) { onClose?() }
     private func synchronize() {
         slider.doubleValue = GlassPreferences.transparency
         value.stringValue = "\(Int(slider.doubleValue.rounded()))%"

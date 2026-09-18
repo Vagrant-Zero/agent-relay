@@ -2,6 +2,7 @@ import AppKit
 import AgentMeterCore
 
 final class SessionsController: NSObject, NSTableViewDataSource, NSTableViewDelegate, NSSearchFieldDelegate, NSWindowDelegate {
+    var onClose: (() -> Void)?
     private let store: Store
     private let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 820, height: 520), styleMask: [.titled, .closable, .resizable, .fullSizeContentView], backing: .buffered, defer: false)
     private let table = NSTableView()
@@ -142,6 +143,7 @@ final class SessionsController: NSObject, NSTableViewDataSource, NSTableViewDele
     }
     func windowWillClose(_ notification: Notification) {
         generation += 1; retry?.cancel(); retry = nil; isLoading = false
+        onClose?()
     }
     private func filter() {
         let selectedID = visible.indices.contains(table.selectedRow) ? visible[table.selectedRow].id : nil

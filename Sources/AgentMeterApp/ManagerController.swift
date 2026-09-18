@@ -29,19 +29,34 @@ final class ManagerController: NSObject, NSWindowDelegate {
     private let feedback = NSTextField(wrappingLabelWithString: "")
     private let spinner = NSProgressIndicator()
     private var cancellation: Cancellation?
+    private var clearFeedback: DispatchWorkItem?
     private var shouldClose = false
+    private struct RowState: Equatable {
+        var accounts: [Account]
+        var selectedID: String?
+        var desktopID: String?
+        var busy: Bool
+        var day: Date
+    }
+    private var renderedState: RowState?
     private var controls: [NSControl] = []
     private var sessionsController: SessionsController?
     private var appearanceController: SettingsController?
     func showSessions() {
-        if sessionsController == nil { sessionsController = SessionsController(store: store) }
+        if sessionsController == nil {
+            sessionsController = SessionsController(store: store)
+            sessionsController?.onClose = { [weak self] in self?.sessionsController = nil }
+        }
         sessionsController?.show()
     }
     func showAppearance() {
-        if appearanceController == nil { appearanceController = SettingsController { [weak self] in
-            guard let self else { return }
-            DistributedNotificationCenter.default().postNotificationName(.init("dev.local.agent-meter.window-request"), object: self.store.root.path, userInfo: ["action": "--check-updates"], deliverImmediately: true)
-        } }
+        if appearanceController == nil {
+            appearanceController = SettingsController { [weak self] in
+                guard let self else { return }
+                DistributedNotificationCenter.default().postNotificationName(.init("dev.local.agent-meter.window-request"), object: self.store.root.path, userInfo: ["action": "--check-updates"], deliverImmediately: true)
+            }
+            appearanceController?.onClose = { [weak self] in self?.appearanceController = nil }
+        }
         appearanceController?.show()
     }
     private(set) var isBusy = false
@@ -179,6 +194,27 @@ final class ManagerController: NSObject, NSWindowDelegate {
         let registry: Registry
         do { registry = try store.read() }
         catch { feedback.stringValue = "账号文件无法读取：\(error.localizedDescription)"; return }
+        let desktopID = registry.desktop.flatMap { DesktopController.isVerified($0) ? $0.accountID : nil }
+        let now = Date()
+        let normalized = registry.accounts.map { account -> Account in
+            var copy = account
+            if var quota = copy.quota {
+                // A fresh timestamp alone does not change the displayed row.
+                quota.fetchedAt = Date(timeIntervalSinceReferenceDate: quota.isStale ? 0 : 1)
+                quota.resetCardExpirations = quota.resetCardExpirations?.filter { $0 > now.timeIntervalSince1970 }
+                copy.quota = quota
+            }
+            return copy
+        }
+        let state = RowState(accounts: normalized, selectedID: registry.selectedID,
+                             desktopID: desktopID, busy: isBusy, day: Calendar.current.startOfDay(for: now))
+        if state == renderedState {
+            for (card, account) in zip(rows.arrangedSubviews, registry.accounts) {
+                card.toolTip = "\(Format.updated(account.quota?.fetchedAt))\(desktopID == account.id ? " · 桌面使用中" : "")"
+            }
+            return
+        }
+        renderedState = state
         rows.arrangedSubviews.forEach { rows.removeArrangedSubview($0); $0.removeFromSuperview() }
         stateLabel.stringValue = ""
         if let session = registry.desktop, DesktopController.isVerified(session),
@@ -293,6 +329,7 @@ final class ManagerController: NSObject, NSWindowDelegate {
     }
     private func perform(_ title: String, work: @escaping (AccountService) throws -> String) {
         guard !isBusy else { return }
+        clearFeedback?.cancel(); clearFeedback = nil
         isBusy = true
         let cancellation = Cancellation(); self.cancellation = cancellation
         feedback.stringValue = title; feedback.textColor = .secondaryLabelColor
@@ -306,7 +343,11 @@ final class ManagerController: NSObject, NSWindowDelegate {
                 guard let self else { return }
                 self.isBusy = false; self.cancellation = nil; self.spinner.stopAnimation(nil)
                 switch result {
-                case .success(let message): self.feedback.stringValue = message; self.feedback.textColor = .secondaryLabelColor
+                case .success(let message):
+                    self.feedback.stringValue = message; self.feedback.textColor = .secondaryLabelColor
+                    let clear = DispatchWorkItem { [weak self] in self?.feedback.stringValue = ""; self?.clearFeedback = nil }
+                    self.clearFeedback = clear
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 3, execute: clear)
                 case .failure(let error): self.feedback.stringValue = error.localizedDescription; self.feedback.textColor = .systemOrange
                 }
                 self.reload()

@@ -4,6 +4,7 @@ import Darwin
 
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var item: NSStatusItem?
+    private var menuIsOpen = false
     private var manager: ManagerController?
     private var updater: AppUpdater?
     private var preferencesObserver: NSObjectProtocol?
@@ -77,7 +78,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 item.button?.toolTip = "Agent Relay"
                 let menu = NSMenu(); menu.delegate = self; menu.autoenablesItems = false
                 item.menu = menu; self.item = item
-                populate(menu)
+                add(menu, "Agent Relay")
+                refreshMenuState()
             }
             if lifecycleCheck {
                 let timer = Timer(timeInterval: 0.1, repeats: true) { [weak self] _ in
@@ -110,12 +112,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         preferencesObserver = DistributedNotificationCenter.default().addObserver(forName: GlassPreferences.changed, object: nil, queue: .main) { [weak self] _ in
             self?.updater?.synchronize()
-            if let menu = self?.item?.menu { self?.populate(menu) }
+            self?.refreshMenuState()
         }
         observer = DistributedNotificationCenter.default().addObserver(forName: .init("dev.local.agent-meter.changed"), object: nil, queue: .main) { [weak self] _ in
             guard let self else { return }
             self.manager?.reload()
-            if let menu = self.item?.menu { self.populate(menu) }
+            self.refreshMenuState()
         }
     }
     func applicationDidHide(_ notification: Notification) { manager?.hideAfterOperation() }
@@ -184,6 +186,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         NSApp.reply(toApplicationShouldTerminate: true)
     }
     func menuNeedsUpdate(_ menu: NSMenu) { populate(menu) }
+    func menuWillOpen(_ menu: NSMenu) { menuIsOpen = true }
+    func menuDidClose(_ menu: NSMenu) {
+        menuIsOpen = false
+        // Let AppKit finish dispatching the selected action before releasing its item.
+        DispatchQueue.main.async { [weak self, weak menu] in
+            guard let self, let menu, !self.menuIsOpen else { return }
+            menu.removeAllItems()
+            self.add(menu, "Agent Relay")
+        }
+    }
+    private func refreshMenuState() {
+        if let registry = try? store.read() { updateStatusItem(registry) }
+        if menuIsOpen, let menu = item?.menu { populate(menu) }
+    }
     private func add(_ menu: NSMenu, _ title: String, action: Selector? = nil, value: String? = nil, enabled: Bool = true) {
         let entry = NSMenuItem(title: title, action: action, keyEquivalent: "")
         entry.target = self; entry.representedObject = value; entry.isEnabled = enabled && action != nil
@@ -259,11 +275,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc private func selectQuotaPeriod(_ sender: NSMenuItem) {
         guard let raw = sender.representedObject as? String, MenuQuotaPeriod(rawValue: raw) != nil else { return }
         GlassPreferences.menuQuotaPeriod = raw
-        if let menu = item?.menu { populate(menu) }
+        refreshMenuState()
     }
     @objc private func toggleMenuQuota() {
         GlassPreferences.showMenuQuota.toggle()
-        if let menu = item?.menu { populate(menu) }
+        refreshMenuState()
     }
     private func runningManager() -> NSRunningApplication? {
         let path = store.root.appendingPathComponent("window.pid")
@@ -369,7 +385,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 guard let self else { return }
                 self.worker = nil
                 if !automatic { self.lastMessage = result.map { String($0.prefix(65)) } }
-                if let menu = self.item?.menu { self.populate(menu) }
+                self.refreshMenuState()
                 if automatic { self.refreshAutomatically() }
             }
         }
