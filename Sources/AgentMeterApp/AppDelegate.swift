@@ -224,8 +224,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         add(menu, "管理账号…", action: #selector(openManager))
         add(menu, "本地会话…", action: #selector(openSessions))
         add(menu, "添加账号…", action: #selector(addAccount))
-        add(menu, "设置…", action: #selector(openAppearance))
-        add(menu, "检查更新…", action: #selector(checkUpdates), enabled: updater != nil && !updating)
         let settingsItem = NSMenuItem(title: "菜单栏显示", action: nil, keyEquivalent: "")
         let settingsMenu = NSMenu(); settingsMenu.autoenablesItems = false
         add(settingsMenu, "菜单栏显示剩余额度", action: #selector(toggleMenuQuota))
@@ -241,6 +239,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         settingsItem.submenu = settingsMenu; menu.addItem(settingsItem)
         add(menu, "刷新额度", action: #selector(refresh), enabled: worker == nil && !registry.accounts.isEmpty)
         menu.items.last?.toolTip = "自动刷新：所有账号约每 30 秒查询一次"
+        add(menu, "设置…", action: #selector(openAppearance))
+        add(menu, "检查更新…", action: #selector(checkUpdates), enabled: updater != nil && !updating)
         menu.addItem(.separator())
         add(menu, "退出 Agent Relay", action: #selector(quit))
     }

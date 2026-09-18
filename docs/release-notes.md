@@ -1,4 +1,4 @@
-Agent Relay 0.3.0 · macOS 26+ · Apple Silicon
+Agent Relay 0.3.1 · macOS 26+ · Apple Silicon
 
 新增设置页：主窗口齿轮和菜单栏均可打开，统一管理透明度、菜单栏额度显示、额度周期及更新选项。
 
