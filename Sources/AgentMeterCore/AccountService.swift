@@ -26,9 +26,15 @@ public enum QuotaDecoder {
             return QuotaWindow(usedPercent: used, windowDurationMins: integer(object["windowDurationMins"]).flatMap { $0 > 0 ? $0 : nil },
                                resetsAt: number(object["resetsAt"]).flatMap { $0 >= 0 ? $0 : nil })
         }
-        let count = integer((value["rateLimitResetCredits"] as? [String: Any])?["availableCount"])
+        let summary = value["rateLimitResetCredits"] as? [String: Any]
+        let count = integer(summary?["availableCount"])
+        let credits = summary?["credits"] as? [[String: Any]]
+        let available = credits?.filter { $0["status"] as? String == "available" && $0["resetType"] as? String == "codexRateLimits" }
+        let expirations = available?.compactMap { number($0["expiresAt"]) }.filter { $0 > now.timeIntervalSince1970 }
+
         return try QuotaSnapshot(primary: window(limits["primary"]), secondary: window(limits["secondary"]),
-                                 resetCards: count.flatMap { $0 >= 0 ? $0 : nil }, fetchedAt: now)
+                                 resetCards: count, resetCardExpirations: expirations,
+                                 resetCardExpiryIsPartial: credits.map { $0.count < (count ?? 0) }, fetchedAt: now)
     }
 }
 

@@ -8,6 +8,7 @@ product_dir="$(swift build -c release --arch arm64 --show-bin-path)"
 "$test_python" verification/test_cli.py
 "$test_python" verification/test_quota_layout.py
 "$test_python" verification/test_quit.py
+"$test_python" verification/test_updater.py
 "$test_python" verification/test_auto_refresh.py
 "$test_python" verification/test_native_bridge.py
 METER_TEST_CLI="$PWD/dist/Agent Relay.app/Contents/MacOS/agent-relay" "$test_python" verification/test_sessions.py

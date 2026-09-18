@@ -23,6 +23,8 @@ cp "$product_dir/agent-relay" "$app_dir/Contents/MacOS/agent-relay"
 cp "$product_dir/agent-relay-bridge" "$app_dir/Contents/MacOS/agent-relay-bridge"
 codesign --force --sign - "$app_dir/Contents/MacOS/agent-relay-bridge"
 codesign --force --sign - "$app_dir/Contents/MacOS/agent-relay"
+mkdir -p "$app_dir/Contents/Frameworks"
+ditto "$PWD/.build/artifacts/sparkle/Sparkle/Sparkle.xcframework/macos-arm64_x86_64/Sparkle.framework" "$app_dir/Contents/Frameworks/Sparkle.framework"
 codesign --force --sign - "$app_dir"
 final_app="$PWD/dist/Agent Relay.app"
 if [[ -e "$final_app" ]]; then

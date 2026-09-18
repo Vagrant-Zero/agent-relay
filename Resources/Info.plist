@@ -1,16 +1,44 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0"><dict>
-<key>CFBundleIdentifier</key><string>dev.local.agent-meter.preview</string>
-<key>CFBundleName</key><string>Agent Relay</string>
-<key>CFBundleDisplayName</key><string>Agent Relay</string>
-<key>CFBundleExecutable</key><string>AgentRelay</string>
-<key>CFBundleIconFile</key><string>AppIcon</string>
-<key>CFBundlePackageType</key><string>APPL</string>
-<key>CFBundleShortVersionString</key><string>0.2.5</string>
-<key>CFBundleVersion</key><string>1</string>
-<key>LSMinimumSystemVersion</key><string>26.0</string>
-<key>LSUIElement</key><true/>
-<key>NSHighResolutionCapable</key><true/>
-<key>NSHumanReadableCopyright</key><string>Agent Relay</string>
-</dict></plist>
+<plist version="1.0">
+<dict>
+	<key>CFBundleIdentifier</key>
+	<string>dev.local.agent-meter.preview</string>
+	<key>CFBundleName</key>
+	<string>Agent Relay</string>
+	<key>CFBundleDisplayName</key>
+	<string>Agent Relay</string>
+	<key>CFBundleExecutable</key>
+	<string>AgentRelay</string>
+	<key>CFBundleIconFile</key>
+	<string>AppIcon</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>0.3.0</string>
+	<key>CFBundleVersion</key>
+	<string>0.3.0</string>
+	<key>LSMinimumSystemVersion</key>
+	<string>26.0</string>
+	<key>LSUIElement</key>
+	<true/>
+	<key>NSHighResolutionCapable</key>
+	<true/>
+	<key>NSHumanReadableCopyright</key>
+	<string>Agent Relay</string>
+	<key>SUPublicEDKey</key>
+	<string>7BnCHdzUo7j3MpR0nXQEd5FtwCzxDcsATLH39AVFRTo=</string>
+	<key>SUFeedURL</key>
+	<string>https://raw.githubusercontent.com/Vagrant-Zero/agent-relay/updates/appcast.xml</string>
+	<key>SUEnableAutomaticChecks</key>
+	<true/>
+	<key>SUAutomaticallyUpdate</key>
+	<false/>
+	<key>SUAllowsAutomaticUpdates</key>
+	<false/>
+	<key>SUScheduledCheckInterval</key>
+	<integer>86400</integer>
+	<key>SUShowReleaseNotes</key>
+	<false/>
+</dict>
+</plist>

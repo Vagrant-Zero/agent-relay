@@ -32,13 +32,16 @@ final class ManagerController: NSObject, NSWindowDelegate {
     private var shouldClose = false
     private var controls: [NSControl] = []
     private var sessionsController: SessionsController?
-    private var appearanceController: AppearanceController?
+    private var appearanceController: SettingsController?
     func showSessions() {
         if sessionsController == nil { sessionsController = SessionsController(store: store) }
         sessionsController?.show()
     }
     func showAppearance() {
-        if appearanceController == nil { appearanceController = AppearanceController() }
+        if appearanceController == nil { appearanceController = SettingsController { [weak self] in
+            guard let self else { return }
+            DistributedNotificationCenter.default().postNotificationName(.init("dev.local.agent-meter.window-request"), object: self.store.root.path, userInfo: ["action": "--check-updates"], deliverImmediately: true)
+        } }
         appearanceController?.show()
     }
     private(set) var isBusy = false
@@ -129,8 +132,8 @@ final class ManagerController: NSObject, NSWindowDelegate {
         let sessions = ActionButton("本地会话") { [weak self] in self?.showSessions() }
         let appearance = ActionButton("") { [weak self] in self?.showAppearance() }
         appearance.isBordered = false
-        appearance.image = NSImage(systemSymbolName: "slider.horizontal.3", accessibilityDescription: "外观")
-        appearance.toolTip = "外观与透明度"
+        appearance.image = NSImage(systemSymbolName: "gearshape", accessibilityDescription: "设置")
+        appearance.toolTip = "设置"
         let add = ActionButton("添加账号") { [weak self] in self?.addAccount() }
         sessions.isBordered = false
         add.isBordered = false
@@ -210,8 +213,14 @@ final class ManagerController: NSObject, NSWindowDelegate {
         let card = AccountRowView(selected: selected)
         let desktop = registry.desktop.map { $0.accountID == account.id && DesktopController.isVerified($0) } ?? false
         let name = stack([label(account.alias, size: 14, weight: .medium), label(selected ? "✓ 当前账号" : "", size: 10, color: .labelColor)], spacing: 6)
-        let identity = stack([name, label(account.email, size: 11, color: .secondaryLabelColor),
-                              label("\(account.plan.capitalized) · 重置卡 \(account.quota?.resetCards.map(String.init) ?? "—")\(account.quota?.isStale == true ? " · 缓存" : "")", size: 10, color: .secondaryLabelColor)], vertical: true, spacing: 5)
+        let identity = stack([name, label(account.email, size: 11, color: .secondaryLabelColor)], vertical: true, spacing: 5)
+        var details = "\(account.plan.capitalized) · 重置卡 \(account.quota?.resetCards.map(String.init) ?? "—")"
+        if let expiry = account.quota?.nextResetCardExpiration() {
+            details += " · \(account.quota?.resetCardExpiryIsPartial == true ? "已知最近" : "最近")到期 \(Format.reset(expiry))"
+        }
+        if account.quota?.isStale == true { details += " · 缓存" }
+        let metadata = label(details, size: 10, color: .secondaryLabelColor)
+        metadata.toolTip = details
         identity.widthAnchor.constraint(equalToConstant: 174).isActive = true
         // Reserve two stable columns even when a refresh returns only one window.
         let columnCount = 2
@@ -246,7 +255,7 @@ final class ManagerController: NSObject, NSWindowDelegate {
         menu.widthAnchor.constraint(equalToConstant: 64).isActive = true
         metrics.widthAnchor.constraint(equalTo: row.widthAnchor, constant: -(174 + 64 + 40)).isActive = true
         metrics.setContentHuggingPriority(.defaultLow, for: .horizontal)
-        var views: [NSView] = [row]
+        var views: [NSView] = [row, metadata]
         if let error = account.lastError {
             let warning = NSTextField(wrappingLabelWithString: error)
             warning.font = .systemFont(ofSize: 11); warning.textColor = .systemOrange
@@ -259,6 +268,7 @@ final class ManagerController: NSObject, NSWindowDelegate {
         NSLayoutConstraint.activate([
             body.topAnchor.constraint(equalTo: card.topAnchor, constant: 20), body.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: 12), body.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -12),
             line.topAnchor.constraint(equalTo: body.bottomAnchor, constant: 20), line.leadingAnchor.constraint(equalTo: card.leadingAnchor), line.trailingAnchor.constraint(equalTo: card.trailingAnchor), line.bottomAnchor.constraint(equalTo: card.bottomAnchor),
+            metadata.widthAnchor.constraint(equalTo: body.widthAnchor),
             row.widthAnchor.constraint(equalTo: body.widthAnchor)
         ])
         return card

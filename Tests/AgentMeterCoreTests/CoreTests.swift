@@ -67,6 +67,26 @@ final class CoreTests {
         expectEqual(recovered.sessions.count, 2)
         expectEqual(recovered.warnings.count, 0)
     }
+    func testResetCardExpiry() throws {
+        let now = Date(timeIntervalSince1970: 1800000000)
+        func card(_ time: Any, status: String = "available", type: String = "codexRateLimits") -> [String: Any] {
+            ["expiresAt": time, "status": status, "resetType": type]
+        }
+        let cards = [card(1800001000), card(1800000500), card(1799999999), card(1800000010, status: "redeemed"), card(1800000020, type: "unknown"), card(NSNull()), card(true)]
+        func decode(_ count: Int, _ credits: Any) throws -> QuotaSnapshot {
+            try QuotaDecoder.decode(["rateLimits": [:], "rateLimitResetCredits": ["availableCount": count, "credits": credits]], now: now)
+        }
+        let quota = try decode(7, cards)
+        expectEqual(quota.nextResetCardExpiration(at: now), 1800000500)
+        expectEqual(quota.nextResetCardExpiration(at: Date(timeIntervalSince1970: 1800000700)), 1800001000)
+        expectNil(quota.nextResetCardExpiration(at: Date(timeIntervalSince1970: 1800001000)))
+        expectNil(try decode(0, cards).nextResetCardExpiration(at: now))
+        expectNil(try decode(2, NSNull()).nextResetCardExpiration(at: now))
+        expectNil(try decode(2, [card(NSNull())]).nextResetCardExpiration(at: now))
+        expectEqual(try decode(10, cards).resetCardExpiryIsPartial, true)
+        let old = try JSONDecoder().decode(QuotaSnapshot.self, from: Data("{\"resetCards\":2,\"fetchedAt\":0}".utf8))
+        expectNil(old.resetCardExpirations)
+    }
     func testQuotaDistinguishesUnknownAndZeroResetCards() throws {
         let limits: [String: Any] = ["primary": ["usedPercent": 25.0, "windowDurationMins": 300, "resetsAt": 1_800_000_000.0]]
         let unknown = try QuotaDecoder.decode(["rateLimits": limits, "rateLimitResetCredits": NSNull()])
@@ -151,6 +171,7 @@ func expectNoThrow<T>(_ operation: @autoclosure () throws -> T, file: StaticStri
         try checks.testSessionScanRetainsRowsAndRecoversAfterLock()
         checks.testQuotaRefreshSchedule()
         try checks.testMenuQuotaPeriodDoesNotFollowResponseOrder()
-        print("9 core checks passed")
+        try checks.testResetCardExpiry()
+        print("10 core checks passed")
     }
 }

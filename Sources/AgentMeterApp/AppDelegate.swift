@@ -5,6 +5,11 @@ import Darwin
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var item: NSStatusItem?
     private var manager: ManagerController?
+    private var updater: AppUpdater?
+    private var preferencesObserver: NSObjectProtocol?
+    private var updateCompletion: (() -> Void)?
+    private var updateTimer: Timer?
+    private var updating = false
     private var store: Store!
     private var worker: Process?
     private var refreshTimer: Timer?
@@ -82,6 +87,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 RunLoop.main.add(timer, forMode: .common)
                 quitTimer = timer
             }
+            commandObserver = DistributedNotificationCenter.default().addObserver(forName: requestName, object: store.root.path, queue: .main) { [weak self] note in
+                if note.userInfo?["action"] as? String == "--check-updates" { self?.updater?.check() }
+            }
+            if !CommandLine.arguments.contains(where: { $0.hasPrefix("--verify-") || $0.hasPrefix("--smoke-") }), ProcessInfo.processInfo.environment["AGENT_METER_HOME"] == nil {
+                updater = AppUpdater()
+                updater?.prepareToInstall = { [weak self] completion in self?.prepareUpdate(completion) }
+                updater?.installationAborted = { [weak self] in
+                    self?.updating = false; self?.updateCompletion = nil
+                    self?.updateTimer?.invalidate(); self?.updateTimer = nil
+                }
+            }
             let timer = Timer(timeInterval: 5, repeats: true) { [weak self] _ in self?.refreshAutomatically() }
             timer.tolerance = 1
             RunLoop.main.add(timer, forMode: .common)
@@ -91,6 +107,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                let count = Int(CommandLine.arguments[index + 1]), (1...100).contains(count) {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in self?.smokeMenu(remaining: count) }
             }
+        }
+        preferencesObserver = DistributedNotificationCenter.default().addObserver(forName: GlassPreferences.changed, object: nil, queue: .main) { [weak self] _ in
+            self?.updater?.synchronize()
+            if let menu = self?.item?.menu { self?.populate(menu) }
         }
         observer = DistributedNotificationCenter.default().addObserver(forName: .init("dev.local.agent-meter.changed"), object: nil, queue: .main) { [weak self] _ in
             guard let self else { return }
@@ -115,6 +135,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
     func applicationWillTerminate(_ notification: Notification) {
         if let observer { DistributedNotificationCenter.default().removeObserver(observer) }
+        if let preferencesObserver { DistributedNotificationCenter.default().removeObserver(preferencesObserver) }
+        updateTimer?.invalidate()
         if let commandObserver { DistributedNotificationCenter.default().removeObserver(commandObserver) }
         refreshTimer?.invalidate()
         quitTimer?.invalidate()
@@ -135,6 +157,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         quitTimer = timer
         RunLoop.main.add(timer, forMode: .common)
         return .terminateLater
+    }
+    private func prepareUpdate(_ completion: @escaping () -> Void) {
+        updating = true; updateCompletion = completion
+        lastMessage = "等待操作完成后安装更新…"
+        let timer = Timer(timeInterval: 0.2, repeats: true) { [weak self] _ in
+            guard let self, self.worker == nil, !self.launchingManager,
+                  (try? self.store.locked { true }) == true else { return }
+            if let app = self.runningManager() { app.terminate(); return }
+            self.updateTimer?.invalidate(); self.updateTimer = nil
+            let done = self.updateCompletion; self.updateCompletion = nil
+            done?()
+        }
+        updateTimer = timer; RunLoop.main.add(timer, forMode: .common)
     }
     private func finishQuit() {
         guard quitting else { return }
@@ -181,6 +216,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 add(menu, "\(windows)\(quota.isStale ? " · 缓存" : "")")
             } else { add(menu, "尚未查询额度") }
             menu.items.last?.indentationLevel = 1
+            if let expiry = account.quota?.resetCardExpiryText { add(menu, expiry); menu.items.last?.indentationLevel = 1 }
             if account.lastError != nil { add(menu, "查询失败"); menu.items.last?.indentationLevel = 1 }
         }
         if registry.accounts.isEmpty { add(menu, "添加账号后，在这里快速切换") }
@@ -188,17 +224,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         add(menu, "管理账号…", action: #selector(openManager))
         add(menu, "本地会话…", action: #selector(openSessions))
         add(menu, "添加账号…", action: #selector(addAccount))
-        add(menu, "外观…", action: #selector(openAppearance))
-        add(menu, "菜单栏显示剩余额度", action: #selector(toggleMenuQuota))
-        menu.items.last?.state = GlassPreferences.showMenuQuota ? .on : .off
-        menu.items.last?.toolTip = "显示当前 CLI 账号的各周期剩余额度"
+        add(menu, "设置…", action: #selector(openAppearance))
+        add(menu, "检查更新…", action: #selector(checkUpdates), enabled: updater != nil && !updating)
+        let settingsItem = NSMenuItem(title: "菜单栏显示", action: nil, keyEquivalent: "")
+        let settingsMenu = NSMenu(); settingsMenu.autoenablesItems = false
+        add(settingsMenu, "菜单栏显示剩余额度", action: #selector(toggleMenuQuota))
+        settingsMenu.items.last?.state = GlassPreferences.showMenuQuota ? .on : .off
+        settingsMenu.items.last?.toolTip = "显示当前 CLI 账号的各周期剩余额度"
         let periodItem = NSMenuItem(title: "额度周期", action: nil, keyEquivalent: "")
         let periodMenu = NSMenu(); periodMenu.autoenablesItems = false
         for period in MenuQuotaPeriod.allCases {
             add(periodMenu, period.title, action: #selector(selectQuotaPeriod(_:)), value: period.rawValue)
             periodMenu.items.last?.state = period.rawValue == GlassPreferences.menuQuotaPeriod ? .on : .off
         }
-        periodItem.submenu = periodMenu; menu.addItem(periodItem)
+        periodItem.submenu = periodMenu; settingsMenu.addItem(periodItem)
+        settingsItem.submenu = settingsMenu; menu.addItem(settingsItem)
         add(menu, "刷新额度", action: #selector(refresh), enabled: worker == nil && !registry.accounts.isEmpty)
         menu.items.last?.toolTip = "自动刷新：所有账号约每 30 秒查询一次"
         menu.addItem(.separator())
@@ -257,7 +297,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc func openSessions() { launchManager(action: "--sessions") }
     @objc func openAppearance() { launchManager(action: "--appearance") }
     private func launchManager(action: String) {
-        guard !quitting else { return }
+        guard !quitting, !updating else { return }
         if let app = runningManager() {
             NSApp.yieldActivation(to: app)
             DistributedNotificationCenter.default().postNotificationName(requestName, object: store.root.path, userInfo: ["action": action], deliverImmediately: true)
@@ -287,9 +327,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc func switchCLI(_ sender: NSMenuItem) { if let id = sender.representedObject as? String { runWorker(["switch", id, "--cli-only"]) } }
     @objc func refresh() { runWorker(["quota"]) }
     @objc func switchAccount(_ sender: NSMenuItem) { if let id = sender.representedObject as? String { runWorker(["switch", id]) } }
+    @objc func checkUpdates() { updater?.check() }
     @objc func quit() { NSApp.terminate(nil) }
     private func refreshAutomatically() {
-        guard !isManager, !quitting, worker == nil,
+        guard !isManager, !quitting, !updating, worker == nil,
               let registry = try? store.read(),
               let id = refreshSchedule.next(in: registry) else { return }
         // Respect login/switch/refresh operations in the other process.
@@ -298,7 +339,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         runWorker(["quota", id], automatic: true)
     }
     private func runWorker(_ arguments: [String], automatic: Bool = false) {
-        guard !quitting, worker == nil else { return }
+        guard !quitting, !updating, worker == nil else { return }
         let process = Process()
         process.executableURL = Bundle.main.executableURL?.deletingLastPathComponent().appendingPathComponent("agent-relay")
         process.arguments = arguments + ["--json"]

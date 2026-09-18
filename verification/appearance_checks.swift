@@ -38,9 +38,9 @@ if !NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency {
     try require(chrome > 0.9, "Title bar must remain legible, got \(chrome)")
 }
 try require(label.alphaValue == 1 && surface.contentHost.alphaValue == 1, "Foreground must not fade")
-let controller = AppearanceController()
+let controller = SettingsController()
 defer { withExtendedLifetime(controller) {} }
-let settings = app.windows.first { $0.title == "外观" }!
+let settings = app.windows.first { $0.title == "设置" }!
 func descendants(_ view: NSView) -> [NSView] { [view] + view.subviews.flatMap(descendants) }
 let slider = descendants(settings.contentView!).compactMap { $0 as? NSSlider }.first!
 slider.doubleValue = 37

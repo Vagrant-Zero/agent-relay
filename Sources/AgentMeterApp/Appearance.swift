@@ -3,13 +3,21 @@ import AppKit
 enum GlassPreferences {
     static let defaults = UserDefaults(suiteName: "dev.local.agent-meter.preview.appearance")!
     static let changed = Notification.Name("dev.local.agent-meter.appearance-changed")
+    static func notify() {
+        DistributedNotificationCenter.default().postNotificationName(changed, object: nil, userInfo: nil, deliverImmediately: true)
+        NotificationCenter.default.post(name: changed, object: nil)
+    }
+    static var automaticUpdates: Bool {
+        get { defaults.object(forKey: "automaticUpdates") == nil ? true : defaults.bool(forKey: "automaticUpdates") }
+        set { defaults.set(newValue, forKey: "automaticUpdates"); notify() }
+    }
     static var menuQuotaPeriod: String {
         get { defaults.string(forKey: "menuQuotaPeriod") ?? "both" }
-        set { defaults.set(newValue, forKey: "menuQuotaPeriod") }
+        set { defaults.set(newValue, forKey: "menuQuotaPeriod"); notify() }
     }
     static var showMenuQuota: Bool {
         get { defaults.bool(forKey: "showMenuQuota") }
-        set { defaults.set(newValue, forKey: "showMenuQuota") }
+        set { defaults.set(newValue, forKey: "showMenuQuota"); notify() }
     }
     static var transparency: Double {
         get { defaults.object(forKey: "transparency") == nil ? 65 : min(100, max(0, defaults.double(forKey: "transparency"))) }
@@ -67,33 +75,68 @@ final class SurfaceView: NSView {
     }
 }
 
-final class AppearanceController {
-    private let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 380, height: 242), styleMask: [.titled, .closable, .fullSizeContentView], backing: .buffered, defer: false)
+final class SettingsController {
+    private let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 430, height: 456), styleMask: [.titled, .closable, .fullSizeContentView], backing: .buffered, defer: false)
     private let value = NSTextField(labelWithString: "")
     private let slider = NSSlider(value: GlassPreferences.transparency, minValue: 0, maxValue: 100, target: nil, action: nil)
-    init() {
-        window.title = "外观"; window.isReleasedWhenClosed = false
+    private let showQuota = NSButton(checkboxWithTitle: "菜单栏显示剩余额度", target: nil, action: nil)
+    private let period = NSPopUpButton()
+    private let automatic = NSButton(checkboxWithTitle: "自动检查更新（每天）", target: nil, action: nil)
+    private let checkUpdates: () -> Void
+    init(checkUpdates: @escaping () -> Void = {}) {
+        self.checkUpdates = checkUpdates
+        window.title = "设置"; window.isReleasedWhenClosed = false
         window.titlebarAppearsTransparent = true; window.isOpaque = false; window.backgroundColor = .clear
         let surface = SurfaceView(); window.contentView = surface
-        let title = NSTextField(labelWithString: "背景透明度")
-        title.font = .systemFont(ofSize: 15, weight: .medium)
-        value.font = .monospacedDigitSystemFont(ofSize: 12, weight: .regular)
+        func text(_ title: String, size: CGFloat = 12, secondary: Bool = false) -> NSTextField {
+            let label = NSTextField(wrappingLabelWithString: title)
+            label.font = .systemFont(ofSize: size, weight: size == 14 ? .medium : .regular)
+            label.textColor = secondary ? .secondaryLabelColor : .labelColor
+            return label
+        }
+        func row(_ views: [NSView]) -> NSStackView {
+            let stack = NSStackView(views: views); stack.spacing = 10; return stack
+        }
         let space = NSView(); space.setContentHuggingPriority(.init(1), for: .horizontal)
-        let row = NSStackView(views: [title, space, value])
+        let transparency = row([text("背景透明度"), space, value])
+        value.font = .monospacedDigitSystemFont(ofSize: 12, weight: .regular)
         slider.target = self; slider.action = #selector(change); slider.isContinuous = true
         slider.setAccessibilityLabel("背景透明度")
-        let note = NSTextField(wrappingLabelWithString: "0% 为实色，100% 为全透明背景。标题栏和文字保持清晰；系统“减少透明度”开启时使用实色背景。")
-        note.font = .systemFont(ofSize: 12); note.textColor = .secondaryLabelColor
-        let stack = NSStackView(views: [row, slider, note]); stack.orientation = .vertical; stack.spacing = 18; stack.alignment = .leading
+        showQuota.target = self; showQuota.action = #selector(changeQuota)
+        period.addItems(withTitles: ["5 小时", "每周", "同时显示"])
+        period.target = self; period.action = #selector(changePeriod)
+        automatic.target = self; automatic.action = #selector(changeAutomatic)
+        let update = NSButton(title: "检查更新…", target: self, action: #selector(check))
+        update.bezelStyle = .rounded
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "开发版"
+        let versionSpace = NSView(); versionSpace.setContentHuggingPriority(.init(1), for: .horizontal)
+        let views: [NSView] = [text("外观", size: 14), transparency, slider,
+            text("透明度只影响背景，标题栏和文字保持清晰。", secondary: true),
+            MeterAppearance.divider(), text("菜单栏", size: 14), showQuota,
+            row([text("显示周期"), period]), MeterAppearance.divider(), text("软件更新", size: 14),
+            row([text("当前版本  \(version)", secondary: true), versionSpace, update]), automatic,
+            text("发现新版本后提示，下载和安装由你确认。", secondary: true)]
+        let stack = NSStackView(views: views); stack.orientation = .vertical; stack.spacing = 12; stack.alignment = .leading
         surface.contentHost.addSubview(stack); stack.translatesAutoresizingMaskIntoConstraints = false
-        NSLayoutConstraint.activate([stack.leadingAnchor.constraint(equalTo: surface.leadingAnchor, constant: 24), stack.trailingAnchor.constraint(equalTo: surface.trailingAnchor, constant: -24), stack.topAnchor.constraint(equalTo: surface.topAnchor, constant: 58)])
-        for child in [row, slider, note] { child.widthAnchor.constraint(equalTo: stack.widthAnchor).isActive = true }
-        updateValue()
+        NSLayoutConstraint.activate([stack.leadingAnchor.constraint(equalTo: surface.leadingAnchor, constant: 24), stack.trailingAnchor.constraint(equalTo: surface.trailingAnchor, constant: -24), stack.topAnchor.constraint(equalTo: surface.topAnchor, constant: 52), stack.bottomAnchor.constraint(lessThanOrEqualTo: surface.bottomAnchor, constant: -20)])
+        for child in views { child.widthAnchor.constraint(equalTo: stack.widthAnchor).isActive = true }
+        synchronize()
     }
-    func render(to url: URL, dark: Bool) throws { try MeterAppearance.render(window: window, to: url, dark: dark, size: NSSize(width: 380, height: 242)) }
-    @objc private func change() { GlassPreferences.transparency = slider.doubleValue; updateValue() }
-    private func updateValue() { value.stringValue = "\(Int(slider.doubleValue.rounded()))%" }
-    func show() { slider.doubleValue = GlassPreferences.transparency; updateValue(); window.center(); window.makeKeyAndOrderFront(nil); NSApp.activate() }
+    private func synchronize() {
+        slider.doubleValue = GlassPreferences.transparency
+        value.stringValue = "\(Int(slider.doubleValue.rounded()))%"
+        showQuota.state = GlassPreferences.showMenuQuota ? .on : .off
+        period.selectItem(at: ["fiveHours", "weekly", "both"].firstIndex(of: GlassPreferences.menuQuotaPeriod) ?? 2)
+        period.isEnabled = GlassPreferences.showMenuQuota
+        automatic.state = GlassPreferences.automaticUpdates ? .on : .off
+    }
+    func render(to url: URL, dark: Bool) throws { try MeterAppearance.render(window: window, to: url, dark: dark, size: NSSize(width: 430, height: 456)) }
+    @objc private func change() { GlassPreferences.transparency = slider.doubleValue; value.stringValue = "\(Int(slider.doubleValue.rounded()))%" }
+    @objc private func changeQuota() { GlassPreferences.showMenuQuota = showQuota.state == .on; synchronize() }
+    @objc private func changePeriod() { GlassPreferences.menuQuotaPeriod = ["fiveHours", "weekly", "both"][period.indexOfSelectedItem] }
+    @objc private func changeAutomatic() { GlassPreferences.automaticUpdates = automatic.state == .on }
+    @objc private func check() { checkUpdates() }
+    func show() { synchronize(); window.center(); window.makeKeyAndOrderFront(nil); NSApp.activate() }
 }
 
 enum MeterAppearance {

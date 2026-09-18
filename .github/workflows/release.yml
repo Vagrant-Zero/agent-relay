@@ -5,7 +5,7 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: release-${{ github.ref }}
+  group: release
   cancel-in-progress: false
 jobs:
   release:
@@ -29,6 +29,12 @@ jobs:
           ./scripts/build.sh "${RELEASE_TAG#v}"
       - run: ./scripts/check.sh
       - run: ./scripts/package-dmg.sh
+      - name: Sign update archive
+        env:
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+        run: |
+          test -n "$SPARKLE_PRIVATE_KEY"
+          python3 scripts/make-appcast.py
       - name: Publish preview release
         shell: bash
         env:
@@ -37,6 +43,11 @@ jobs:
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
           file="dist/Agent-Relay-${RELEASE_TAG#v}-macos-arm64.dmg"
-          gh release create "$RELEASE_TAG" "$file" "$file.sha256" \
+          gh release create "$RELEASE_TAG" "$file" "$file.sha256" dist/appcast.xml \
             --verify-tag --prerelease --title "Agent Relay $RELEASE_TAG" \
             --notes-file docs/release-notes.md
+      - name: Publish update feed
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: python3 scripts/publish-appcast.py

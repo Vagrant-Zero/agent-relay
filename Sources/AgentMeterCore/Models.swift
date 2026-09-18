@@ -22,6 +22,16 @@ public struct QuotaSnapshot: Codable, Equatable {
     public var primary: QuotaWindow?
     public var secondary: QuotaWindow?
     public var resetCards: Int?
+    public var resetCardExpirations: [Double]? = nil
+    public var resetCardExpiryIsPartial: Bool? = nil
+    public func nextResetCardExpiration(at now: Date = Date()) -> Double? {
+        guard (resetCards ?? 0) > 0 else { return nil }
+        return resetCardExpirations?.filter { $0 > now.timeIntervalSince1970 }.min()
+    }
+    public var resetCardExpiryText: String? {
+        guard let expiry = nextResetCardExpiration() else { return nil }
+        return "重置卡\(resetCardExpiryIsPartial == true ? "已知" : "")最近到期：\(Format.reset(expiry))"
+    }
     public var fetchedAt: Date
     public var isStale: Bool { Date().timeIntervalSince(fetchedAt) > 300 }
 }
